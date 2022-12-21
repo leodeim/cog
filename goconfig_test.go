@@ -2,102 +2,131 @@ package goconfig
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/leonidasdeim/goconfig/internal/files"
 )
 
 type TestConfig struct {
-	Name    string
-	Version int
+	Name      string `default:"app"`
+	Version   int    `validate:"required"`
+	IsPrefork bool   `default:"true"`
 }
 
-var testData = TestConfig{"goconfig_test", 123}
+var testData = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
+var testDataWithDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
 
-const testString = "{\"name\":\"goconfig_test\",\"version\":123}"
+const permissionRwRwR = 0664
+const testConfigName = "test"
+const testDir = "testDir/"
+const testString = "{\"name\":\"config_test\",\"version\":123}"
+const testStringWithoutVersion = "{\"name\":\"config_test\"}"
+const testStringWithDefaults = "{\"version\":123}"
 
-func setUp(file string, data string, subs int) (*config[TestConfig], error) {
-	err := ioutil.WriteFile(file, []byte(data), 0644)
+func setUp(file string, path string, data string, subscribers []string) (*Config[TestConfig], error) {
+	if path != "" {
+		err := os.Mkdir(path, os.ModePerm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	configName := filepath.Join(path, fmt.Sprintf(file, testConfigName))
+	err := os.WriteFile(configName, []byte(data), permissionRwRwR)
+
 	if err != nil {
 		return nil, err
 	}
 
-	c, err := Init[TestConfig](subs)
+	c, err := Init[TestConfig](WithName(testConfigName), WithPath(path))
 	if err != nil {
 		return nil, err
+	}
+
+	for _, subscriber := range subscribers {
+		c.AddSubscriber(subscriber)
 	}
 
 	return c, nil
 }
 
 func cleanUp() {
-	os.Remove(defaultConfig)
-	os.Remove(activeConfig)
+	os.Remove(fmt.Sprintf(defaultConfig, testConfigName))
+	os.Remove(fmt.Sprintf(activeConfig, testConfigName))
+	os.RemoveAll(testDir)
 }
 
 func Test_Init(t *testing.T) {
 	t.Run("No configuration files", func(t *testing.T) {
-		_, err := Init[TestConfig](0)
+		_, err := Init[TestConfig](WithName("not_exist"))
 		if err == nil {
-			t.Errorf("Error is not returned unexpectedly")
+			t.Errorf("Error is not returned")
 		}
 	})
 
 	t.Run("Check loaded config data", func(t *testing.T) {
-		c, err := setUp(defaultConfig, testString, 0)
+		t.Cleanup(cleanUp)
+
+		c, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
 		want := testData
-		got := *c.Get()
+		got := c.GetCfg()
+
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
 		}
 	})
 
 	t.Run("Check loaded config data from active config", func(t *testing.T) {
-		c, err := setUp(activeConfig, testString, 0)
+		t.Cleanup(cleanUp)
+
+		c, err := setUp(activeConfig, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
 		want := testData
-		got := *c.Get()
+		got := c.GetCfg()
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
 		}
 	})
 
 	t.Run("Create active config file", func(t *testing.T) {
-		_, err := setUp(defaultConfig, testString, 0)
+		t.Cleanup(cleanUp)
+
+		_, err := setUp(activeConfig, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
-		if !fileExists(activeConfig) {
+		if !files.Exists(fmt.Sprintf(activeConfig, testConfigName)) {
 			t.Error("Expected active config file to be created, but it does not exist")
 		}
-		os.Remove(activeConfig)
+		os.Remove(fmt.Sprintf(activeConfig, testConfigName))
 	})
 
 	t.Run("Check active config file content", func(t *testing.T) {
-		_, err := setUp(defaultConfig, testString, 0)
+		t.Cleanup(cleanUp)
+
+		_, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
 		fileContent := TestConfig{}
-		configFile, err := os.Open(activeConfig)
+		configFile, err := os.Open(fmt.Sprintf(activeConfig, testConfigName))
 		if err != nil {
 			t.Error("Opening activeConfig file", err.Error())
 		}
@@ -109,18 +138,20 @@ func Test_Init(t *testing.T) {
 
 		want := testData
 		got := fileContent
+
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
 		}
 	})
 
 	t.Run("Check timestamp is created", func(t *testing.T) {
-		c, err := setUp(defaultConfig, testString, 0)
+		t.Cleanup(cleanUp)
+
+		c, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
 		if c.GetTimestamp() == "" {
 			t.Error("Timestamp is not set")
@@ -128,82 +159,170 @@ func Test_Init(t *testing.T) {
 	})
 
 	t.Run("Check subscribers being created", func(t *testing.T) {
-		const NUM_OF_SUBS = 5
-		c, err := setUp(defaultConfig, testString, NUM_OF_SUBS)
+		t.Cleanup(cleanUp)
+
+		subscribers := [5]string{"test1", "test2", "test3", "test4", "test5"}
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
-		if len(c.subscribers) != NUM_OF_SUBS {
+		if len(c.subscribers) != len(subscribers) {
 			t.Error("Expected number of subscribers is not correct")
 		}
 	})
 
 	t.Run("Check subscribers not being notified", func(t *testing.T) {
-		const NUM_OF_SUBS = 1
-		c, err := setUp(defaultConfig, testString, NUM_OF_SUBS)
+		t.Cleanup(cleanUp)
+
+		subscribers := [5]string{"test1"}
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
 			t.Error("Error while setting up test")
 			t.FailNow()
 		}
-		defer cleanUp()
 
-		if len(*c.GetSubscriber(0)) != 0 {
+		if len(c.GetSubscriber("test1")) != 0 {
 			t.Error("Subscribers has been notified")
+		}
+	})
+
+	t.Run("Custom config path", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		c, err := setUp(defaultConfig, testDir, testString, []string{})
+		if err != nil {
+			t.Errorf("Error while setting up test: %v", err)
+			t.FailNow()
+		}
+
+		defaultConfigPth := filepath.Join(testDir, fmt.Sprintf(defaultConfig, testConfigName))
+		if _, err := os.Stat(defaultConfigPth); err != nil {
+			t.Error("Cannot find default config in expected location")
+			t.FailNow()
+		}
+
+		activeConfigPth := filepath.Join(testDir, fmt.Sprintf(activeConfig, testConfigName))
+		if _, err := os.Stat(activeConfigPth); err != nil {
+			t.Error("Cannot find active config in expected location")
+			t.FailNow()
+		}
+
+		want := testData
+		got := c.GetCfg()
+
+		if !reflect.DeepEqual(want, got) {
+			t.Error("Expected config does not match the result")
+			t.FailNow()
+		}
+	})
+
+	t.Run("Check required fields validation", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		_, err := setUp(defaultConfig, "", testStringWithoutVersion, []string{})
+		if err == nil {
+			t.Errorf("Error is not returned")
+			t.FailNow()
+		}
+		if !strings.Contains(err.Error(), "failed at validate config") {
+			t.Errorf("Validation error is not returned")
+		}
+	})
+
+	t.Run("Check if default values are set", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		c, err := setUp(defaultConfig, "", testStringWithDefaults, []string{})
+		if err != nil {
+			t.Errorf("Failed to set default values")
+			t.FailNow()
+		}
+
+		want := testDataWithDefaultName
+		got := c.GetCfg()
+		if !reflect.DeepEqual(want, got) {
+			t.Error("Expected config does not match the result")
 		}
 	})
 }
 
 func Test_Update(t *testing.T) {
-	newData := TestConfig{"new_data", 456}
+	newData := TestConfig{Name: "new_data", Version: 456}
 
 	t.Run("Check if config is updated", func(t *testing.T) {
-		c, err := setUp(defaultConfig, testString, 0)
+		t.Cleanup(cleanUp)
+
+		c, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
 		c.Update(newData)
 
 		want := newData
-		got := *c.Get()
+		got := c.GetCfg()
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
 		}
 	})
 
 	t.Run("Check if subscribers are being notified", func(t *testing.T) {
-		c, err := setUp(defaultConfig, testString, 3)
+		t.Cleanup(cleanUp)
+
+		subscribers := [5]string{"test1", "test2", "test3"}
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
 
 		c.Update(newData)
 
-		if len(c.subscribers[0]) != 1 || len(c.subscribers[1]) != 1 || len(c.subscribers[2]) != 1 {
+		if len(c.subscribers["test1"]) != 1 || len(c.subscribers["test2"]) != 1 || len(c.subscribers["test3"]) != 1 {
 			t.Error("Subscribers not being notified")
 		}
 	})
 
-	t.Run("Check if channels not being overloaded", func(t *testing.T) {
-		c, err := setUp(defaultConfig, testString, 1)
+	t.Run("Check channel read", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		subscribers := [1]string{"test1"}
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
-		defer cleanUp()
+
+		c.Update(newData)
+		ch := c.GetSubscriber("test1")
+
+		select {
+		case <-ch:
+			return
+		default:
+			t.Error("Channel not notified")
+			t.FailNow()
+		}
+	})
+
+	t.Run("Check if channels not being overloaded", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		subscribers := [1]string{"test1"}
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
+		if err != nil {
+			t.Errorf("Error while setting up test: %v", err)
+			t.FailNow()
+		}
 
 		c.Update(newData)
 		c.Update(newData)
 		c.Update(newData)
 
-		if len(c.subscribers[0]) != 1 {
+		if len(c.subscribers["test1"]) != 1 {
 			t.Error("Subscribers not being notified")
 		}
 	})

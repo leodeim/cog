@@ -1,57 +1,100 @@
 package goconfig
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
+
+	"github.com/go-playground/validator/v10"
+	"github.com/leonidasdeim/goconfig/internal/defaults"
+	"github.com/leonidasdeim/goconfig/internal/files"
 )
 
-var (
-	defaultConfig = "app_config.default.json"
-	activeConfig  = "app_config.active.json"
-)
-
-type config[T any] struct {
+type Config[T any] struct {
+	mu          sync.Mutex
 	data        T
 	timestamp   string
-	subscribers []chan bool
+	subscribers map[string](chan bool)
 	activeFile  string
 }
 
-func Init[T any](numberOfSubs int) (*config[T], error) {
-	c := &config[T]{}
+const (
+	defaultConfig = "%s.default.json"
+	activeConfig  = "%s.json"
+)
 
-	// use active config if exists
-	activeFileExists := fileExists(activeConfig)
-	defaultFileExists := fileExists(defaultConfig)
+type Optional struct {
+	Name string
+	Path string
+}
+
+type Option func(f *Optional)
+
+// Add custom filename. By default it is set to "app".
+func WithName(name string) Option {
+	return func(o *Optional) {
+		o.Name = name
+	}
+}
+
+// Add custom config file path. By default library searches work directory.
+func WithPath(path string) Option {
+	return func(o *Optional) {
+		o.Path = path
+	}
+}
+
+// Initialize goconfig library. Returns goconfig instance and error if something goes wrong.
+// Receives optional parameters to set custom filename and path.
+func Init[T any](opts ...Option) (*Config[T], error) {
+	workDir := files.GetWorkDir()
+	c := &Config[T]{}
+
+	optional := &Optional{
+		Name: "app",   // Default configuration name for application
+		Path: workDir, // Default configuration path
+	}
+
+	for _, opt := range opts {
+		opt(optional)
+	}
+
+	c.subscribers = make(map[string]chan bool)
+	activeConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(activeConfig, optional.Name))
+	defaultConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(defaultConfig, optional.Name))
+	activeFileExists := files.Exists(activeConfigFilename)
+	defaultFileExists := files.Exists(defaultConfigFilename)
 
 	if activeFileExists {
-		c.activeFile = activeConfig
+		c.activeFile = activeConfigFilename
 	} else if defaultFileExists {
-		c.activeFile = defaultConfig
+		c.activeFile = defaultConfigFilename
 	} else {
 		return nil, fmt.Errorf("no configuration files found")
 	}
 
-	// load config file
-	err := c.load()
+	err := files.Load(&c.mu, &c.data, c.activeFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed at load from file: %v", err)
 	}
-	c.updateTimestamp()
 
-	// create subscribers
-	for i := 0; i < numberOfSubs; i++ {
-		c.subscribers = append(c.subscribers, make(chan bool, 1))
+	err = c.validate()
+	if err != nil {
+		return nil, fmt.Errorf("failed at validate config: %v", err)
 	}
 
-	// create active config file if needed
+	err = defaults.Set(&c.data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set default values in config: %v", err)
+	}
+
+	c.updateTimestamp()
+
 	if !activeFileExists {
-		c.activeFile = activeConfig
-		err = c.persist()
+		c.activeFile = activeConfigFilename
+		err = files.Persist(&c.mu, c.data, c.activeFile)
 		if err != nil {
 			return nil, err
 		}
@@ -60,76 +103,70 @@ func Init[T any](numberOfSubs int) (*config[T], error) {
 	return c, nil
 }
 
-func (c *config[T]) Get() *T {
-	return &c.data
-}
-
-func (c *config[T]) Update(newConfig T) error {
-	c.data = newConfig
-
-	err := c.persist()
-	if err != nil {
-		return err
-	}
-	c.updateTimestamp()
-
-	// notify subscribers
-	for i := 0; i < len(c.subscribers); i++ {
-		if len(c.subscribers[i]) != 0 {
-			continue
-		}
-		c.subscribers[i] <- true
-	}
-	return nil
-}
-
-func (c *config[T]) GetTimestamp() string {
-	return c.timestamp
-}
-
-func (c *config[T]) GetSubscriber(i int) *chan bool {
-	if i < len(c.subscribers) {
-		return &c.subscribers[i]
-	}
-	return nil
-}
-
-func (c *config[T]) updateTimestamp() {
+func (c *Config[T]) updateTimestamp() {
 	c.timestamp = strconv.FormatInt(time.Now().Unix(), 10)
 }
 
-func (c *config[T]) load() error {
-	configFile, err := os.Open(c.activeFile)
+// Update configuration data. After update subscribers will be notified.
+func (c *Config[T]) Update(newConfig T) error {
+	c.data = newConfig
+
+	err := files.Persist(&c.mu, c.data, c.activeFile)
+
 	if err != nil {
 		return err
 	}
 
-	jsonParser := json.NewDecoder(configFile)
-	if err = jsonParser.Decode(&c.data); err != nil {
-		return err
+	c.updateTimestamp()
+
+	for _, channel := range c.subscribers {
+		// Do not notify subscriber through channel if it was already notified
+		if len(channel) != 0 {
+			continue
+		}
+
+		channel <- true
 	}
 
 	return nil
 }
 
-func (c *config[T]) persist() error {
-	file, err := json.MarshalIndent(c.data, "", "	")
-	if err != nil {
-		return fmt.Errorf("failed at marshal json: %v", err)
-	}
-
-	err = ioutil.WriteFile(c.activeFile, file, 0644)
-	if err != nil {
-		return fmt.Errorf("failed at write to file: %v", err)
-	}
-
-	return nil
+func (c *Config[T]) validate() error {
+	validate := validator.New()
+	return validate.Struct(c.data)
 }
 
-func fileExists(filename string) bool {
-	if _, err := os.Stat(filename); err == nil {
-		return true
-	}
+// Get subscriber read only channel by key.
+func (c *Config[T]) GetSubscriber(key string) <-chan bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.subscribers[key]
+}
 
-	return false
+// Register new subscriber.
+func (c *Config[T]) AddSubscriber(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.subscribers[key] = make(chan bool, 1)
+}
+
+// Remove subscriber by key.
+func (c *Config[T]) RemoveSubscriber(key string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.subscribers, key)
+}
+
+// Get timestamp of the configuration. It reflects when configuration has been updated or loaded last time.
+func (c *Config[T]) GetTimestamp() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.timestamp
+}
+
+// Get configuration data.
+func (c *Config[T]) GetCfg() T {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.data
 }
