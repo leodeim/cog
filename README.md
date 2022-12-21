@@ -1,3 +1,7 @@
+<p align="center">
+ <img src="img/goconfig.png" width="650">
+</p>
+
 # goconfig
 
 Config tool for Go applications that require configuration changes on-the-fly.
