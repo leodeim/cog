@@ -1,5 +1,5 @@
 <p align="center">
- <img src="img/goconfig.png" width="650">
+ <img src="img/goconfig.png" width="400">
 </p>
 
 <div align="center">
