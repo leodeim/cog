@@ -18,9 +18,9 @@ Example of config structure:
 
 ```go
 type ConfigType struct {
- AppName   string `default:"app"`
- Version   string `default:"1"`
- Prefork   bool   `default:"false"`
+ AppName   string
+ Version   string
+ Prefork   bool
 }
 ```
 
