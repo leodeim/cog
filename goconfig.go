@@ -63,8 +63,8 @@ func Init[T any](opts ...Option) (*config[T], error) {
 	}
 
 	c.subscribers = make(map[string]chan bool)
-	activeConfigFilename := filepath.Join(workDir, fmt.Sprintf(ACTIVE_CONFIG, optional.Name))
-	defaultConfigFilename := filepath.Join(workDir, fmt.Sprintf(DEFAULT_CONFIG, optional.Name))
+	activeConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(ACTIVE_CONFIG, optional.Name))
+	defaultConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(DEFAULT_CONFIG, optional.Name))
 	activeFileExists := fileExists(activeConfigFilename)
 	defaultFileExists := fileExists(defaultConfigFilename)
 
