@@ -20,9 +20,9 @@ Example of config structure:
 
 ```go
 type ConfigType struct {
- Version   string `validate:"required"`
- Address   string `validate:"required,ip"`
- Prefork   bool
+    Version   string `validate:"required"`
+    Address   string `validate:"required,ip"`
+    Prefork   bool
 }
 ```
 
@@ -47,7 +47,10 @@ c.AddSubscriber("name_of_subscriber")
 Implement waiting goroutine for config change on the fly in your modules:
 
 ```go
-_ = <-config.GetSubscriber("name_of_subscriber")
+for {
+    _ = <-config.GetSubscriber("name_of_subscriber")
+    reconfigureModule()
+}
 ```
 
 You can remove subscriber by given name on the fly as well:
