@@ -6,20 +6,22 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
 type TestConfig struct {
 	Name    string
-	Version int
+	Version int `validate:"required"`
 }
 
-var testData = TestConfig{"config_test", 123}
+var testData = TestConfig{Name: "config_test", Version: 123}
 
 const CONFIG_NAME = "test"
 const TEST_DIR = "testDir/"
 
 const testString = "{\"name\":\"config_test\",\"version\":123}"
+const testStringWithoutVersion = "{\"name\":\"config_test\"}"
 
 func setUp(file string, path string, data string, subscribers []string) (*config[TestConfig], error) {
 	if path != "" {
@@ -57,7 +59,7 @@ func Test_Init(t *testing.T) {
 	t.Run("No configuration files", func(t *testing.T) {
 		_, err := Init[TestConfig](WithName("not_exist"))
 		if err == nil {
-			t.Errorf("Error is not returned unexpectedly")
+			t.Errorf("Error is not returned")
 		}
 	})
 
@@ -65,9 +67,8 @@ func Test_Init(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		c, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
-
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -84,7 +85,7 @@ func Test_Init(t *testing.T) {
 
 		c, err := setUp(ACTIVE_CONFIG, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -100,7 +101,7 @@ func Test_Init(t *testing.T) {
 
 		_, err := setUp(ACTIVE_CONFIG, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -115,7 +116,7 @@ func Test_Init(t *testing.T) {
 
 		_, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -143,7 +144,7 @@ func Test_Init(t *testing.T) {
 
 		c, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -156,11 +157,9 @@ func Test_Init(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		subscribers := [5]string{"test1", "test2", "test3", "test4", "test5"}
-
 		c, err := setUp(DEFAULT_CONFIG, "", testString, subscribers[:])
-
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -188,7 +187,6 @@ func Test_Init(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		c, err := setUp(DEFAULT_CONFIG, TEST_DIR, testString, []string{})
-
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -214,17 +212,30 @@ func Test_Init(t *testing.T) {
 			t.FailNow()
 		}
 	})
+
+	t.Run("Check required fields validation", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		_, err := setUp(DEFAULT_CONFIG, "", testStringWithoutVersion, []string{})
+		if err == nil {
+			t.Errorf("Error is not returned")
+			t.FailNow()
+		}
+		if !strings.Contains(err.Error(), "failed at validate config") {
+			t.Errorf("Validation error is not returned")
+		}
+	})
 }
 
 func Test_Update(t *testing.T) {
-	newData := TestConfig{"new_data", 456}
+	newData := TestConfig{Name: "new_data", Version: 456}
 
 	t.Run("Check if config is updated", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		c, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -241,11 +252,9 @@ func Test_Update(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		subscribers := [5]string{"test1", "test2", "test3"}
-
 		c, err := setUp(DEFAULT_CONFIG, "", testString, subscribers[:])
-
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
@@ -261,9 +270,8 @@ func Test_Update(t *testing.T) {
 
 		subscribers := [1]string{"test1"}
 		c, err := setUp(DEFAULT_CONFIG, "", testString, subscribers[:])
-
 		if err != nil {
-			t.Error("Error while setting up test")
+			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
