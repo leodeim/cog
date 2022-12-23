@@ -21,11 +21,11 @@ type Config[T any] struct {
 }
 
 const (
-	DEFAULT_CONFIG     = "%s.default.json"
-	ACTIVE_CONFIG      = "%s.json"
-	MARSHAL_INDENT     = "	"
-	EMPTY_SPACE        = ""
-	RW_RW_R_PERMISSION = 0664
+	defaultConfig   = "%s.default.json"
+	activeConfig    = "%s.json"
+	marshalIndent   = "	"
+	emptySpace      = ""
+	permissionRwRwR = 0664
 )
 
 type Optional struct {
@@ -65,8 +65,8 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 	}
 
 	c.subscribers = make(map[string]chan bool)
-	activeConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(ACTIVE_CONFIG, optional.Name))
-	defaultConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(DEFAULT_CONFIG, optional.Name))
+	activeConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(activeConfig, optional.Name))
+	defaultConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(defaultConfig, optional.Name))
 	activeFileExists := fileExists(activeConfigFilename)
 	defaultFileExists := fileExists(defaultConfigFilename)
 
@@ -132,13 +132,13 @@ func (c *Config[T]) persist() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	file, err := json.MarshalIndent(c.data, EMPTY_SPACE, MARSHAL_INDENT)
+	file, err := json.MarshalIndent(c.data, emptySpace, marshalIndent)
 
 	if err != nil {
 		return fmt.Errorf("failed at marshal json: %v", err)
 	}
 
-	err = os.WriteFile(c.activeFile, file, RW_RW_R_PERMISSION)
+	err = os.WriteFile(c.activeFile, file, permissionRwRwR)
 
 	if err != nil {
 		return fmt.Errorf("failed at write to file: %v", err)
@@ -178,7 +178,7 @@ func fileExists(filename string) bool {
 	return false
 }
 
-func (c *Config[T]) GetSubscriber(key string) chan bool {
+func (c *Config[T]) GetSubscriber(key string) <-chan bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.subscribers[key]
