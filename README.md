@@ -1,10 +1,11 @@
 <p align="center">
- <img src="img/goconfig.png" width="400">
+ <img src="img/goconfig.png" width="450">
 </p>
 
 <div align="center">
 
   <a href="">![Tests](https://github.com/leonidasdeim/goconfig/actions/workflows/go.yml/badge.svg)</a>
+  <a href="">![Code Scanning](https://github.com/leonidasdeim/goconfig/actions/workflows/codeql.yml/badge.svg)</a>
   <a href="">![Release](https://badgen.net/github/release/leonidasdeim/goconfig/)</a>
   <a href="">![Releases](https://badgen.net/github/releases/leonidasdeim/goconfig)</a>
   <a href="">![Contributors](https://badgen.net/github/contributors/leonidasdeim/goconfig)</a>
