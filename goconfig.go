@@ -3,54 +3,88 @@ package goconfig
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 )
 
-var (
-	defaultConfig = "app_config.default.json"
-	activeConfig  = "app_config.active.json"
-)
-
 type config[T any] struct {
+	mu          sync.Mutex
 	data        T
 	timestamp   string
-	subscribers []chan bool
+	subscribers map[string](chan bool)
 	activeFile  string
 }
 
-func Init[T any](numberOfSubs int) (*config[T], error) {
+const (
+	DEFAULT_CONFIG     = "%s.default.json"
+	ACTIVE_CONFIG      = "%s.json"
+	MARSHAL_INDENT     = "	"
+	EMPTY_SPACE        = ""
+	RW_RW_R_PERMISSION = 0664
+)
+
+type Optional struct {
+	Name string
+	Path string
+}
+
+type Option func(f *Optional)
+
+func WithName(name string) Option {
+	return func(o *Optional) {
+		o.Name = name
+	}
+}
+
+func WithPath(path string) Option {
+	return func(o *Optional) {
+		o.Path = path
+	}
+}
+
+func Init[T any](opts ...Option) (*config[T], error) {
+	workDir, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
+
 	c := &config[T]{}
 
-	// use active config if exists
-	activeFileExists := fileExists(activeConfig)
-	defaultFileExists := fileExists(defaultConfig)
+	optional := &Optional{
+		Name: "app",   // Default configuration name for application
+		Path: workDir, // Default configuration path
+	}
+
+	for _, opt := range opts {
+		opt(optional)
+	}
+
+	c.subscribers = make(map[string]chan bool)
+	activeConfigFilename := filepath.Join(workDir, fmt.Sprintf(ACTIVE_CONFIG, optional.Name))
+	defaultConfigFilename := filepath.Join(workDir, fmt.Sprintf(DEFAULT_CONFIG, optional.Name))
+	activeFileExists := fileExists(activeConfigFilename)
+	defaultFileExists := fileExists(defaultConfigFilename)
 
 	if activeFileExists {
-		c.activeFile = activeConfig
+		c.activeFile = activeConfigFilename
 	} else if defaultFileExists {
-		c.activeFile = defaultConfig
+		c.activeFile = defaultConfigFilename
 	} else {
 		return nil, fmt.Errorf("no configuration files found")
 	}
 
-	// load config file
-	err := c.load()
+	err = c.load()
 	if err != nil {
 		return nil, fmt.Errorf("failed at load from file: %v", err)
 	}
+
 	c.updateTimestamp()
 
-	// create subscribers
-	for i := 0; i < numberOfSubs; i++ {
-		c.subscribers = append(c.subscribers, make(chan bool, 1))
-	}
-
-	// create active config file if needed
 	if !activeFileExists {
-		c.activeFile = activeConfig
+		c.activeFile = activeConfigFilename
 		err = c.persist()
 		if err != nil {
 			return nil, err
@@ -60,46 +94,58 @@ func Init[T any](numberOfSubs int) (*config[T], error) {
 	return c, nil
 }
 
-func (c *config[T]) Get() *T {
-	return &c.data
+func (c *config[T]) updateTimestamp() {
+	c.timestamp = strconv.FormatInt(time.Now().Unix(), 10)
 }
 
 func (c *config[T]) Update(newConfig T) error {
 	c.data = newConfig
 
 	err := c.persist()
+
 	if err != nil {
 		return err
 	}
+
 	c.updateTimestamp()
 
-	// notify subscribers
-	for i := 0; i < len(c.subscribers); i++ {
-		if len(c.subscribers[i]) != 0 {
+	for _, channel := range c.subscribers {
+		// Do not notify subscriber through channel if it was already notified
+		if len(channel) != 0 {
 			continue
 		}
-		c.subscribers[i] <- true
+
+		channel <- true
 	}
+
 	return nil
 }
 
-func (c *config[T]) GetTimestamp() string {
-	return c.timestamp
-}
+func (c *config[T]) persist() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
-func (c *config[T]) GetSubscriber(i int) *chan bool {
-	if i < len(c.subscribers) {
-		return &c.subscribers[i]
+	file, err := json.MarshalIndent(c.data, EMPTY_SPACE, MARSHAL_INDENT)
+
+	if err != nil {
+		return fmt.Errorf("failed at marshal json: %v", err)
 	}
-	return nil
-}
 
-func (c *config[T]) updateTimestamp() {
-	c.timestamp = strconv.FormatInt(time.Now().Unix(), 10)
+	err = os.WriteFile(c.activeFile, file, RW_RW_R_PERMISSION)
+
+	if err != nil {
+		return fmt.Errorf("failed at write to file: %v", err)
+	}
+
+	return nil
 }
 
 func (c *config[T]) load() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	configFile, err := os.Open(c.activeFile)
+
 	if err != nil {
 		return err
 	}
@@ -112,24 +158,40 @@ func (c *config[T]) load() error {
 	return nil
 }
 
-func (c *config[T]) persist() error {
-	file, err := json.MarshalIndent(c.data, "", "	")
-	if err != nil {
-		return fmt.Errorf("failed at marshal json: %v", err)
-	}
-
-	err = ioutil.WriteFile(c.activeFile, file, 0644)
-	if err != nil {
-		return fmt.Errorf("failed at write to file: %v", err)
-	}
-
-	return nil
-}
-
 func fileExists(filename string) bool {
 	if _, err := os.Stat(filename); err == nil {
 		return true
 	}
 
 	return false
+}
+
+func (c *config[T]) GetSubscriber(key string) chan bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.subscribers[key]
+}
+
+func (c *config[T]) AddSubscriber(key string) {
+	c.mu.Lock()
+	c.subscribers[key] = make(chan bool, 1)
+	c.mu.Unlock()
+}
+
+func (c *config[T]) RemoveSubscriber(key string) {
+	c.mu.Lock()
+	delete(c.subscribers, key)
+	c.mu.Unlock()
+}
+
+func (c *config[T]) GetTimestamp() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.timestamp
+}
+
+func (c *config[T]) GetCfg() *T {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return &c.data
 }
