@@ -14,13 +14,15 @@ go get github.com/leonidasdeim/goconfig
 
 Initial config that will store configuration information should be placed in root folder named `app.default.json`. Write config structure of your app.
 
+`goconfig` uses [validator](https://github.com/go-playground/validator) library for validating config struct. For example you can specify required configuration items with `validate:"required"` tag.
+
 Example of config structure:
 
 ```go
 type ConfigType struct {
- AppName   string
- Version   string
- Prefork   bool
+    Version   string `validate:"required"`
+    Address   string `validate:"required,ip"`
+    Prefork   bool
 }
 ```
 
@@ -28,9 +30,10 @@ Initialize and use config:
 
 ```go
 config := config.Init[ConfigType]()
+
 // access current configuration attributes
 cfg := config.GetCfg()
-cfg.AppName = "NewName"
+
 // update current configuration
 config.UpdateConfig(cfg)
 ```
@@ -44,7 +47,10 @@ c.AddSubscriber("name_of_subscriber")
 Implement waiting goroutine for config change on the fly in your modules:
 
 ```go
-_ = <-config.GetSubscriber("name_of_subscriber")
+for {
+    _ = <-config.GetSubscriber("name_of_subscriber")
+    reconfigureModule()
+}
 ```
 
 You can remove subscriber by given name on the fly as well:

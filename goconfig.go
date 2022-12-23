@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/go-playground/validator/v10"
 )
 
 type config[T any] struct {
@@ -63,8 +65,8 @@ func Init[T any](opts ...Option) (*config[T], error) {
 	}
 
 	c.subscribers = make(map[string]chan bool)
-	activeConfigFilename := filepath.Join(workDir, fmt.Sprintf(ACTIVE_CONFIG, optional.Name))
-	defaultConfigFilename := filepath.Join(workDir, fmt.Sprintf(DEFAULT_CONFIG, optional.Name))
+	activeConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(ACTIVE_CONFIG, optional.Name))
+	defaultConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(DEFAULT_CONFIG, optional.Name))
 	activeFileExists := fileExists(activeConfigFilename)
 	defaultFileExists := fileExists(defaultConfigFilename)
 
@@ -79,6 +81,11 @@ func Init[T any](opts ...Option) (*config[T], error) {
 	err = c.load()
 	if err != nil {
 		return nil, fmt.Errorf("failed at load from file: %v", err)
+	}
+
+	err = c.validate()
+	if err != nil {
+		return nil, fmt.Errorf("failed at validate config: %v", err)
 	}
 
 	c.updateTimestamp()
@@ -156,6 +163,11 @@ func (c *config[T]) load() error {
 	}
 
 	return nil
+}
+
+func (c *config[T]) validate() error {
+	validate := validator.New()
+	return validate.Struct(c.data)
 }
 
 func fileExists(filename string) bool {
