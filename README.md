@@ -2,6 +2,15 @@
  <img src="img/goconfig.png" width="650">
 </p>
 
+<div align="center">
+
+  <a href="">![Tests](https://github.com/leonidasdeim/goconfig/actions/workflows/go.yml/badge.svg)</a>
+  <a href="">![Release](https://badgen.net/github/release/leonidasdeim/goconfig/)</a>
+  <a href="">![Releases](https://badgen.net/github/releases/leonidasdeim/goconfig)</a>
+  <a href="">![Contributors](https://badgen.net/github/contributors/leonidasdeim/goconfig)</a>
+  
+</div>
+
 # goconfig
 
 Config tool for Go applications that require configuration changes on-the-fly.
