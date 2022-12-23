@@ -23,7 +23,7 @@ const TEST_DIR = "testDir/"
 const testString = "{\"name\":\"config_test\",\"version\":123}"
 const testStringWithoutVersion = "{\"name\":\"config_test\"}"
 
-func setUp(file string, path string, data string, subscribers []string) (*config[TestConfig], error) {
+func setUp(file string, path string, data string, subscribers []string) (*Config[TestConfig], error) {
 	if path != "" {
 		err := os.Mkdir(path, os.ModePerm)
 		if err != nil {
