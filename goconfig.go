@@ -12,7 +12,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-type config[T any] struct {
+type Config[T any] struct {
 	mu          sync.Mutex
 	data        T
 	timestamp   string
@@ -47,13 +47,13 @@ func WithPath(path string) Option {
 	}
 }
 
-func Init[T any](opts ...Option) (*config[T], error) {
+func Init[T any](opts ...Option) (*Config[T], error) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
-	c := &config[T]{}
+	c := &Config[T]{}
 
 	optional := &Optional{
 		Name: "app",   // Default configuration name for application
@@ -101,11 +101,11 @@ func Init[T any](opts ...Option) (*config[T], error) {
 	return c, nil
 }
 
-func (c *config[T]) updateTimestamp() {
+func (c *Config[T]) updateTimestamp() {
 	c.timestamp = strconv.FormatInt(time.Now().Unix(), 10)
 }
 
-func (c *config[T]) Update(newConfig T) error {
+func (c *Config[T]) Update(newConfig T) error {
 	c.data = newConfig
 
 	err := c.persist()
@@ -128,7 +128,7 @@ func (c *config[T]) Update(newConfig T) error {
 	return nil
 }
 
-func (c *config[T]) persist() error {
+func (c *Config[T]) persist() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -147,7 +147,7 @@ func (c *config[T]) persist() error {
 	return nil
 }
 
-func (c *config[T]) load() error {
+func (c *Config[T]) load() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -165,7 +165,7 @@ func (c *config[T]) load() error {
 	return nil
 }
 
-func (c *config[T]) validate() error {
+func (c *Config[T]) validate() error {
 	validate := validator.New()
 	return validate.Struct(c.data)
 }
@@ -178,31 +178,31 @@ func fileExists(filename string) bool {
 	return false
 }
 
-func (c *config[T]) GetSubscriber(key string) chan bool {
+func (c *Config[T]) GetSubscriber(key string) chan bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.subscribers[key]
 }
 
-func (c *config[T]) AddSubscriber(key string) {
+func (c *Config[T]) AddSubscriber(key string) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.subscribers[key] = make(chan bool, 1)
-	c.mu.Unlock()
 }
 
-func (c *config[T]) RemoveSubscriber(key string) {
+func (c *Config[T]) RemoveSubscriber(key string) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	delete(c.subscribers, key)
-	c.mu.Unlock()
 }
 
-func (c *config[T]) GetTimestamp() string {
+func (c *Config[T]) GetTimestamp() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.timestamp
 }
 
-func (c *config[T]) GetCfg() *T {
+func (c *Config[T]) GetCfg() *T {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return &c.data
