@@ -31,7 +31,7 @@ func setUp(file string, path string, data string, subscribers []string) (*Config
 		}
 	}
 	configName := filepath.Join(path, fmt.Sprintf(file, CONFIG_NAME))
-	err := os.WriteFile(configName, []byte(data), RW_RW_R_PERMISSION)
+	err := os.WriteFile(configName, []byte(data), permissionRwRwR)
 
 	if err != nil {
 		return nil, err
@@ -50,8 +50,8 @@ func setUp(file string, path string, data string, subscribers []string) (*Config
 }
 
 func cleanUp() {
-	os.Remove(fmt.Sprintf(DEFAULT_CONFIG, CONFIG_NAME))
-	os.Remove(fmt.Sprintf(ACTIVE_CONFIG, CONFIG_NAME))
+	os.Remove(fmt.Sprintf(defaultConfig, CONFIG_NAME))
+	os.Remove(fmt.Sprintf(activeConfig, CONFIG_NAME))
 	os.RemoveAll(TEST_DIR)
 }
 
@@ -66,7 +66,7 @@ func Test_Init(t *testing.T) {
 	t.Run("Check loaded config data", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		c, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
+		c, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -83,7 +83,7 @@ func Test_Init(t *testing.T) {
 	t.Run("Check loaded config data from active config", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		c, err := setUp(ACTIVE_CONFIG, "", testString, []string{})
+		c, err := setUp(activeConfig, "", testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -99,29 +99,29 @@ func Test_Init(t *testing.T) {
 	t.Run("Create active config file", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		_, err := setUp(ACTIVE_CONFIG, "", testString, []string{})
+		_, err := setUp(activeConfig, "", testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
-		if !fileExists(fmt.Sprintf(ACTIVE_CONFIG, CONFIG_NAME)) {
+		if !fileExists(fmt.Sprintf(activeConfig, CONFIG_NAME)) {
 			t.Error("Expected active config file to be created, but it does not exist")
 		}
-		os.Remove(fmt.Sprintf(ACTIVE_CONFIG, CONFIG_NAME))
+		os.Remove(fmt.Sprintf(activeConfig, CONFIG_NAME))
 	})
 
 	t.Run("Check active config file content", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		_, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
+		_, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
 		fileContent := TestConfig{}
-		configFile, err := os.Open(fmt.Sprintf(ACTIVE_CONFIG, CONFIG_NAME))
+		configFile, err := os.Open(fmt.Sprintf(activeConfig, CONFIG_NAME))
 		if err != nil {
 			t.Error("Opening activeConfig file", err.Error())
 		}
@@ -142,7 +142,7 @@ func Test_Init(t *testing.T) {
 	t.Run("Check timestamp is created", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		c, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
+		c, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -157,7 +157,7 @@ func Test_Init(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		subscribers := [5]string{"test1", "test2", "test3", "test4", "test5"}
-		c, err := setUp(DEFAULT_CONFIG, "", testString, subscribers[:])
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -172,7 +172,7 @@ func Test_Init(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		subscribers := [5]string{"test1"}
-		c, err := setUp(DEFAULT_CONFIG, "", testString, subscribers[:])
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
 			t.Error("Error while setting up test")
 			t.FailNow()
@@ -186,19 +186,19 @@ func Test_Init(t *testing.T) {
 	t.Run("Custom config path", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		c, err := setUp(DEFAULT_CONFIG, TEST_DIR, testString, []string{})
+		c, err := setUp(defaultConfig, TEST_DIR, testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
-		defaultConfigPth := filepath.Join(TEST_DIR, fmt.Sprintf(DEFAULT_CONFIG, CONFIG_NAME))
+		defaultConfigPth := filepath.Join(TEST_DIR, fmt.Sprintf(defaultConfig, CONFIG_NAME))
 		if _, err := os.Stat(defaultConfigPth); err != nil {
 			t.Error("Cannot find default config in expected location")
 			t.FailNow()
 		}
 
-		activeConfigPth := filepath.Join(TEST_DIR, fmt.Sprintf(ACTIVE_CONFIG, CONFIG_NAME))
+		activeConfigPth := filepath.Join(TEST_DIR, fmt.Sprintf(activeConfig, CONFIG_NAME))
 		if _, err := os.Stat(activeConfigPth); err != nil {
 			t.Error("Cannot find active config in expected location")
 			t.FailNow()
@@ -216,7 +216,7 @@ func Test_Init(t *testing.T) {
 	t.Run("Check required fields validation", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		_, err := setUp(DEFAULT_CONFIG, "", testStringWithoutVersion, []string{})
+		_, err := setUp(defaultConfig, "", testStringWithoutVersion, []string{})
 		if err == nil {
 			t.Errorf("Error is not returned")
 			t.FailNow()
@@ -233,7 +233,7 @@ func Test_Update(t *testing.T) {
 	t.Run("Check if config is updated", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		c, err := setUp(DEFAULT_CONFIG, "", testString, []string{})
+		c, err := setUp(defaultConfig, "", testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -252,7 +252,7 @@ func Test_Update(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		subscribers := [5]string{"test1", "test2", "test3"}
-		c, err := setUp(DEFAULT_CONFIG, "", testString, subscribers[:])
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -265,11 +265,33 @@ func Test_Update(t *testing.T) {
 		}
 	})
 
+	t.Run("Check channel read", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		subscribers := [1]string{"test1"}
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
+		if err != nil {
+			t.Errorf("Error while setting up test: %v", err)
+			t.FailNow()
+		}
+
+		c.Update(newData)
+		ch := c.GetSubscriber("test1")
+
+		select {
+		case <-ch:
+			return
+		default:
+			t.Error("Channel not notified")
+			t.FailNow()
+		}
+	})
+
 	t.Run("Check if channels not being overloaded", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		subscribers := [1]string{"test1"}
-		c, err := setUp(DEFAULT_CONFIG, "", testString, subscribers[:])
+		c, err := setUp(defaultConfig, "", testString, subscribers[:])
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
