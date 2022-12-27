@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/leonidasdeim/goconfig/internal/files"
 )
 
 type TestConfig struct {
@@ -19,6 +21,7 @@ type TestConfig struct {
 var testData = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
 var testDataWithDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
 
+const permissionRwRwR = 0664
 const testConfigName = "test"
 const testDir = "testDir/"
 const testString = "{\"name\":\"config_test\",\"version\":123}"
@@ -75,7 +78,7 @@ func Test_Init(t *testing.T) {
 		}
 
 		want := testData
-		got := *c.GetCfg()
+		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
@@ -92,7 +95,7 @@ func Test_Init(t *testing.T) {
 		}
 
 		want := testData
-		got := *c.GetCfg()
+		got := c.GetCfg()
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
 		}
@@ -107,7 +110,7 @@ func Test_Init(t *testing.T) {
 			t.FailNow()
 		}
 
-		if !fileExists(fmt.Sprintf(activeConfig, testConfigName)) {
+		if !files.Exists(fmt.Sprintf(activeConfig, testConfigName)) {
 			t.Error("Expected active config file to be created, but it does not exist")
 		}
 		os.Remove(fmt.Sprintf(activeConfig, testConfigName))
@@ -207,7 +210,7 @@ func Test_Init(t *testing.T) {
 		}
 
 		want := testData
-		got := *c.GetCfg()
+		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
@@ -238,7 +241,7 @@ func Test_Init(t *testing.T) {
 		}
 
 		want := testDataWithDefaultName
-		got := *c.GetCfg()
+		got := c.GetCfg()
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
 		}
@@ -260,7 +263,7 @@ func Test_Update(t *testing.T) {
 		c.Update(newData)
 
 		want := newData
-		got := *c.GetCfg()
+		got := c.GetCfg()
 		if !reflect.DeepEqual(want, got) {
 			t.Error("Expected config does not match the result")
 		}

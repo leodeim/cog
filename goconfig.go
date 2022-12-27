@@ -1,16 +1,15 @@
 package goconfig
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/leonidasdeim/goconfig/internal/defaults"
+	"github.com/leonidasdeim/goconfig/internal/files"
 )
 
 type Config[T any] struct {
@@ -18,16 +17,12 @@ type Config[T any] struct {
 	data        T
 	timestamp   string
 	subscribers map[string](chan bool)
-	activeFile  string
+	file        string
 }
 
 const (
-	defaultConfig   = "%s.default.json"
-	activeConfig    = "%s.json"
-	marshalIndent   = "	"
-	emptySpace      = ""
-	permissionRwRwR = 0664
-	defaultTag      = "default"
+	defaultConfig = "%s.default.json"
+	activeConfig  = "%s.json"
 )
 
 type Optional struct {
@@ -37,24 +32,24 @@ type Optional struct {
 
 type Option func(f *Optional)
 
+// Add custom filename. By default it is set to "app".
 func WithName(name string) Option {
 	return func(o *Optional) {
 		o.Name = name
 	}
 }
 
+// Add custom config file path. By default library searches work directory.
 func WithPath(path string) Option {
 	return func(o *Optional) {
 		o.Path = path
 	}
 }
 
+// Initialize goconfig library. Returns goconfig instance and error if something goes wrong.
+// Receives optional parameters to set custom filename and path.
 func Init[T any](opts ...Option) (*Config[T], error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
+	workDir := files.GetWorkDir()
 	c := &Config[T]{}
 
 	optional := &Optional{
@@ -67,20 +62,18 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 	}
 
 	c.subscribers = make(map[string]chan bool)
-	activeConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(activeConfig, optional.Name))
-	defaultConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(defaultConfig, optional.Name))
-	activeFileExists := fileExists(activeConfigFilename)
-	defaultFileExists := fileExists(defaultConfigFilename)
+	activeFile := filepath.Join(optional.Path, fmt.Sprintf(activeConfig, optional.Name))
+	defaultFile := filepath.Join(optional.Path, fmt.Sprintf(defaultConfig, optional.Name))
 
-	if activeFileExists {
-		c.activeFile = activeConfigFilename
-	} else if defaultFileExists {
-		c.activeFile = defaultConfigFilename
+	if files.Exists(activeFile) {
+		c.file = activeFile
+	} else if files.Exists(defaultFile) {
+		c.file = defaultFile
 	} else {
 		return nil, fmt.Errorf("no configuration files found")
 	}
 
-	err = c.load()
+	err := files.Load(&c.mu, &c.data, c.file)
 	if err != nil {
 		return nil, fmt.Errorf("failed at load from file: %v", err)
 	}
@@ -90,16 +83,16 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 		return nil, fmt.Errorf("failed at validate config: %v", err)
 	}
 
-	err = c.setDefault()
+	err = defaults.Set(&c.data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set default values in config: %v", err)
 	}
 
 	c.updateTimestamp()
 
-	if !activeFileExists {
-		c.activeFile = activeConfigFilename
-		err = c.persist()
+	if !files.Exists(activeFile) {
+		c.file = activeFile
+		err = files.Persist(&c.mu, c.data, c.file)
 		if err != nil {
 			return nil, err
 		}
@@ -108,58 +101,15 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 	return c, nil
 }
 
-func (c *Config[T]) setDefault() error {
-	v := reflect.ValueOf(&c.data).Elem()
-	t := v.Type()
-
-	for i := 0; i < t.NumField(); i++ {
-		if defaultVal := t.Field(i).Tag.Get(defaultTag); defaultVal != "" {
-			if err := c.setField(v.Field(i), defaultVal); err != nil {
-				return err
-			}
-
-		}
-	}
-	return nil
-}
-
-func (c *Config[T]) setField(field reflect.Value, defaultVal string) error {
-
-	if !field.CanSet() {
-		return fmt.Errorf("can't set value")
-	}
-
-	if !IsEmpty(field) {
-		// field already set.
-		return nil
-	}
-
-	switch field.Kind() {
-
-	case reflect.Int:
-		if val, err := strconv.Atoi(defaultVal); err == nil {
-			field.Set(reflect.ValueOf(int(val)).Convert(field.Type()))
-		}
-	case reflect.String:
-		field.Set(reflect.ValueOf(defaultVal).Convert(field.Type()))
-	case reflect.Bool:
-		if val, err := strconv.ParseBool(defaultVal); err == nil {
-			field.Set(reflect.ValueOf(bool(val)).Convert(field.Type()))
-		}
-	}
-
-	return nil
-}
-
 func (c *Config[T]) updateTimestamp() {
 	c.timestamp = strconv.FormatInt(time.Now().Unix(), 10)
 }
 
+// Update configuration data. After update subscribers will be notified.
 func (c *Config[T]) Update(newConfig T) error {
 	c.data = newConfig
 
-	err := c.persist()
-
+	err := files.Persist(&c.mu, c.data, c.file)
 	if err != nil {
 		return err
 	}
@@ -171,45 +121,7 @@ func (c *Config[T]) Update(newConfig T) error {
 		if len(channel) != 0 {
 			continue
 		}
-
 		channel <- true
-	}
-
-	return nil
-}
-
-func (c *Config[T]) persist() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	file, err := json.MarshalIndent(c.data, emptySpace, marshalIndent)
-
-	if err != nil {
-		return fmt.Errorf("failed at marshal json: %v", err)
-	}
-
-	err = os.WriteFile(c.activeFile, file, permissionRwRwR)
-
-	if err != nil {
-		return fmt.Errorf("failed at write to file: %v", err)
-	}
-
-	return nil
-}
-
-func (c *Config[T]) load() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	configFile, err := os.Open(c.activeFile)
-
-	if err != nil {
-		return err
-	}
-
-	jsonParser := json.NewDecoder(configFile)
-	if err = jsonParser.Decode(&c.data); err != nil {
-		return err
 	}
 
 	return nil
@@ -220,45 +132,37 @@ func (c *Config[T]) validate() error {
 	return validate.Struct(c.data)
 }
 
-func fileExists(filename string) bool {
-	if _, err := os.Stat(filename); err == nil {
-		return true
-	}
-
-	return false
-}
-
+// Get subscriber read only channel by key.
 func (c *Config[T]) GetSubscriber(key string) <-chan bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.subscribers[key]
 }
 
+// Register new subscriber.
 func (c *Config[T]) AddSubscriber(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.subscribers[key] = make(chan bool, 1)
 }
 
+// Remove subscriber by key.
 func (c *Config[T]) RemoveSubscriber(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.subscribers, key)
 }
 
+// Get timestamp of the configuration. It reflects when configuration has been updated or loaded last time.
 func (c *Config[T]) GetTimestamp() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.timestamp
 }
 
-func (c *Config[T]) GetCfg() *T {
+// Get configuration data.
+func (c *Config[T]) GetCfg() T {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return &c.data
-}
-
-// Helpers
-func IsEmpty(v reflect.Value) bool {
-	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
+	return c.data
 }
