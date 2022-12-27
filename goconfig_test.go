@@ -11,17 +11,19 @@ import (
 )
 
 type TestConfig struct {
-	Name    string
-	Version int `validate:"required"`
+	Name      string `default:"app"`
+	Version   int    `validate:"required"`
+	IsPrefork bool   `default:"true"`
 }
 
-var testData = TestConfig{Name: "config_test", Version: 123}
+var testData = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
+var testDataWithDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
 
-const CONFIG_NAME = "test"
-const TEST_DIR = "testDir/"
-
+const testConfigName = "test"
+const testDir = "testDir/"
 const testString = "{\"name\":\"config_test\",\"version\":123}"
 const testStringWithoutVersion = "{\"name\":\"config_test\"}"
+const testStringWithDefaults = "{\"version\":123}"
 
 func setUp(file string, path string, data string, subscribers []string) (*Config[TestConfig], error) {
 	if path != "" {
@@ -30,14 +32,14 @@ func setUp(file string, path string, data string, subscribers []string) (*Config
 			return nil, err
 		}
 	}
-	configName := filepath.Join(path, fmt.Sprintf(file, CONFIG_NAME))
+	configName := filepath.Join(path, fmt.Sprintf(file, testConfigName))
 	err := os.WriteFile(configName, []byte(data), permissionRwRwR)
 
 	if err != nil {
 		return nil, err
 	}
 
-	c, err := Init[TestConfig](WithName(CONFIG_NAME), WithPath(path))
+	c, err := Init[TestConfig](WithName(testConfigName), WithPath(path))
 	if err != nil {
 		return nil, err
 	}
@@ -50,9 +52,9 @@ func setUp(file string, path string, data string, subscribers []string) (*Config
 }
 
 func cleanUp() {
-	os.Remove(fmt.Sprintf(defaultConfig, CONFIG_NAME))
-	os.Remove(fmt.Sprintf(activeConfig, CONFIG_NAME))
-	os.RemoveAll(TEST_DIR)
+	os.Remove(fmt.Sprintf(defaultConfig, testConfigName))
+	os.Remove(fmt.Sprintf(activeConfig, testConfigName))
+	os.RemoveAll(testDir)
 }
 
 func Test_Init(t *testing.T) {
@@ -105,10 +107,10 @@ func Test_Init(t *testing.T) {
 			t.FailNow()
 		}
 
-		if !fileExists(fmt.Sprintf(activeConfig, CONFIG_NAME)) {
+		if !fileExists(fmt.Sprintf(activeConfig, testConfigName)) {
 			t.Error("Expected active config file to be created, but it does not exist")
 		}
-		os.Remove(fmt.Sprintf(activeConfig, CONFIG_NAME))
+		os.Remove(fmt.Sprintf(activeConfig, testConfigName))
 	})
 
 	t.Run("Check active config file content", func(t *testing.T) {
@@ -121,7 +123,7 @@ func Test_Init(t *testing.T) {
 		}
 
 		fileContent := TestConfig{}
-		configFile, err := os.Open(fmt.Sprintf(activeConfig, CONFIG_NAME))
+		configFile, err := os.Open(fmt.Sprintf(activeConfig, testConfigName))
 		if err != nil {
 			t.Error("Opening activeConfig file", err.Error())
 		}
@@ -186,19 +188,19 @@ func Test_Init(t *testing.T) {
 	t.Run("Custom config path", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		c, err := setUp(defaultConfig, TEST_DIR, testString, []string{})
+		c, err := setUp(defaultConfig, testDir, testString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
 		}
 
-		defaultConfigPth := filepath.Join(TEST_DIR, fmt.Sprintf(defaultConfig, CONFIG_NAME))
+		defaultConfigPth := filepath.Join(testDir, fmt.Sprintf(defaultConfig, testConfigName))
 		if _, err := os.Stat(defaultConfigPth); err != nil {
 			t.Error("Cannot find default config in expected location")
 			t.FailNow()
 		}
 
-		activeConfigPth := filepath.Join(TEST_DIR, fmt.Sprintf(activeConfig, CONFIG_NAME))
+		activeConfigPth := filepath.Join(testDir, fmt.Sprintf(activeConfig, testConfigName))
 		if _, err := os.Stat(activeConfigPth); err != nil {
 			t.Error("Cannot find active config in expected location")
 			t.FailNow()
@@ -223,6 +225,22 @@ func Test_Init(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "failed at validate config") {
 			t.Errorf("Validation error is not returned")
+		}
+	})
+
+	t.Run("Check if default values are set", func(t *testing.T) {
+		t.Cleanup(cleanUp)
+
+		c, err := setUp(defaultConfig, "", testStringWithDefaults, []string{})
+		if err != nil {
+			t.Errorf("Failed to set default values")
+			t.FailNow()
+		}
+
+		want := testDataWithDefaultName
+		got := *c.GetCfg()
+		if !reflect.DeepEqual(want, got) {
+			t.Error("Expected config does not match the result")
 		}
 	})
 }

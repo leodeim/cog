@@ -26,13 +26,15 @@ Initial config that will store configuration information should be placed in roo
 
 `goconfig` uses [validator](https://github.com/go-playground/validator) library for validating config struct. For example you can specify required configuration items with `validate:"required"` tag.
 
+`goconfig` also let to you set up default values for entries in configuration with `default:"some value"` tag. Right now, only bool, int and string is supported.
+
 Example of config structure:
 
 ```go
 type ConfigType struct {
     Version   string `validate:"required"`
     Address   string `validate:"required,ip"`
-    Prefork   bool
+    Prefork   bool `default:"false"`
 }
 ```
 
