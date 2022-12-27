@@ -228,7 +228,7 @@ func Test_Init(t *testing.T) {
 		}
 	})
 
-	t.Run("Check if deault values are set", func(t *testing.T) {
+	t.Run("Check if default values are set", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
 		c, err := setUp(defaultConfig, "", testStringWithDefaults, []string{})
