@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -26,6 +27,7 @@ const (
 	marshalIndent   = "	"
 	emptySpace      = ""
 	permissionRwRwR = 0664
+	defaultTag      = "default"
 )
 
 type Optional struct {
@@ -88,6 +90,11 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 		return nil, fmt.Errorf("failed at validate config: %v", err)
 	}
 
+	err = c.setDefault()
+	if err != nil {
+		return nil, fmt.Errorf("failed to set default values in config: %v", err)
+	}
+
 	c.updateTimestamp()
 
 	if !activeFileExists {
@@ -99,6 +106,45 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 	}
 
 	return c, nil
+}
+
+func (c *Config[T]) setDefault() error {
+	v := reflect.ValueOf(&c.data).Elem()
+	t := v.Type()
+
+	for i := 0; i < t.NumField(); i++ {
+		if defaultVal := t.Field(i).Tag.Get(defaultTag); defaultVal != "" {
+			if err := c.setField(v.Field(i), defaultVal); err != nil {
+				return err
+			}
+
+		}
+	}
+	return nil
+}
+
+func (c *Config[T]) setField(field reflect.Value, defaultVal string) error {
+
+	if !field.CanSet() {
+		return fmt.Errorf("can't set value")
+	}
+
+	if !IsEmpty(field) {
+		// field already set.
+		return nil
+	}
+
+	switch field.Kind() {
+
+	case reflect.Int:
+		if val, err := strconv.ParseInt(defaultVal, 10, 64); err == nil {
+			field.Set(reflect.ValueOf(int(val)).Convert(field.Type()))
+		}
+	case reflect.String:
+		field.Set(reflect.ValueOf(defaultVal).Convert(field.Type()))
+	}
+
+	return nil
 }
 
 func (c *Config[T]) updateTimestamp() {
@@ -206,4 +252,9 @@ func (c *Config[T]) GetCfg() *T {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return &c.data
+}
+
+// Helpers
+func IsEmpty(v reflect.Value) bool {
+	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 }
