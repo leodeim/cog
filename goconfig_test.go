@@ -11,18 +11,19 @@ import (
 )
 
 type TestConfig struct {
-	Name    string `default:"app"`
-	Version int    `validate:"required"`
+	Name      string `default:"app"`
+	Version   int    `validate:"required"`
+	IsPrefork bool   `default:"true"`
 }
 
-var testData = TestConfig{Name: "config_test", Version: 123}
-var testDataWithDefaultName = TestConfig{Name: "app", Version: 123}
+var testData = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
+var testDataWithDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
 
 const testConfigName = "test"
 const testDir = "testDir/"
 const testString = "{\"name\":\"config_test\",\"version\":123}"
 const testStringWithoutVersion = "{\"name\":\"config_test\"}"
-const testStringWithoutName = "{\"version\":123}"
+const testStringWithDefaults = "{\"version\":123}"
 
 func setUp(file string, path string, data string, subscribers []string) (*Config[TestConfig], error) {
 	if path != "" {
@@ -230,7 +231,7 @@ func Test_Init(t *testing.T) {
 	t.Run("Check if deault values are set", func(t *testing.T) {
 		t.Cleanup(cleanUp)
 
-		c, err := setUp(defaultConfig, "", testStringWithoutName, []string{})
+		c, err := setUp(defaultConfig, "", testStringWithDefaults, []string{})
 		if err != nil {
 			t.Errorf("Failed to set default values")
 			t.FailNow()
