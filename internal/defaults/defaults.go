@@ -2,31 +2,76 @@ package defaults
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 )
 
-const defaultTag = "default"
+type getValue func(reflect.StructField) string
+
+var tagHandlers = []getValue{
+	environmentValue("env"),
+	defaultValue("default"),
+}
+
+func environmentValue(tag string) getValue {
+	return func(sf reflect.StructField) string {
+		if env := sf.Tag.Get(tag); env != "" {
+			return os.Getenv(env)
+		}
+
+		return ""
+	}
+}
+
+func defaultValue(tag string) getValue {
+	return func(sf reflect.StructField) string {
+		if val := sf.Tag.Get(tag); val != "" {
+			return val
+		}
+
+		return ""
+	}
+}
 
 func Set[T any](data *T) error {
-	v := reflect.ValueOf(data).Elem()
-	t := v.Type()
+	return setNested(reflect.ValueOf(data).Elem())
+}
 
-	for i := 0; i < t.NumField(); i++ {
-		if defaultVal := t.Field(i).Tag.Get(defaultTag); defaultVal != "" {
-			if err := setField(v.Field(i), defaultVal); err != nil {
-				return err
+func setNested(v reflect.Value) error {
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).Kind() == reflect.Struct {
+			setNested(v.Field(i))
+		} else {
+			t := v.Type()
+			for i := 0; i < t.NumField(); i++ {
+				if err := setField(t.Field(i), v.Field(i)); err != nil {
+					return err
+				}
 			}
-
 		}
 	}
+
 	return nil
 }
 
-func setField(field reflect.Value, defaultVal string) error {
+func setField(sf reflect.StructField, f reflect.Value) error {
+	for _, getValue := range tagHandlers {
+		if err := setValue(f, getValue(sf)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func setValue(field reflect.Value, val string) error {
+	if val == "" {
+		return nil
+	}
 
 	if !field.CanSet() {
-		return fmt.Errorf("can't set value")
+		return fmt.Errorf("can't set value: %s", val)
 	}
 
 	if !isEmpty(field) {
@@ -36,13 +81,13 @@ func setField(field reflect.Value, defaultVal string) error {
 
 	switch field.Kind() {
 	case reflect.Int:
-		if val, err := strconv.Atoi(defaultVal); err == nil {
+		if val, err := strconv.Atoi(val); err == nil {
 			field.Set(reflect.ValueOf(int(val)).Convert(field.Type()))
 		}
 	case reflect.String:
-		field.Set(reflect.ValueOf(defaultVal).Convert(field.Type()))
+		field.Set(reflect.ValueOf(val).Convert(field.Type()))
 	case reflect.Bool:
-		if val, err := strconv.ParseBool(defaultVal); err == nil {
+		if val, err := strconv.ParseBool(val); err == nil {
 			field.Set(reflect.ValueOf(bool(val)).Convert(field.Type()))
 		}
 	}
