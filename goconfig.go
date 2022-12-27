@@ -17,7 +17,7 @@ type Config[T any] struct {
 	data        T
 	timestamp   string
 	subscribers map[string](chan bool)
-	activeFile  string
+	file        string
 }
 
 const (
@@ -62,20 +62,18 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 	}
 
 	c.subscribers = make(map[string]chan bool)
-	activeConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(activeConfig, optional.Name))
-	defaultConfigFilename := filepath.Join(optional.Path, fmt.Sprintf(defaultConfig, optional.Name))
-	activeFileExists := files.Exists(activeConfigFilename)
-	defaultFileExists := files.Exists(defaultConfigFilename)
+	activeFile := filepath.Join(optional.Path, fmt.Sprintf(activeConfig, optional.Name))
+	defaultFile := filepath.Join(optional.Path, fmt.Sprintf(defaultConfig, optional.Name))
 
-	if activeFileExists {
-		c.activeFile = activeConfigFilename
-	} else if defaultFileExists {
-		c.activeFile = defaultConfigFilename
+	if files.Exists(activeFile) {
+		c.file = activeFile
+	} else if files.Exists(defaultFile) {
+		c.file = defaultFile
 	} else {
 		return nil, fmt.Errorf("no configuration files found")
 	}
 
-	err := files.Load(&c.mu, &c.data, c.activeFile)
+	err := files.Load(&c.mu, &c.data, c.file)
 	if err != nil {
 		return nil, fmt.Errorf("failed at load from file: %v", err)
 	}
@@ -92,9 +90,9 @@ func Init[T any](opts ...Option) (*Config[T], error) {
 
 	c.updateTimestamp()
 
-	if !activeFileExists {
-		c.activeFile = activeConfigFilename
-		err = files.Persist(&c.mu, c.data, c.activeFile)
+	if !files.Exists(activeFile) {
+		c.file = activeFile
+		err = files.Persist(&c.mu, c.data, c.file)
 		if err != nil {
 			return nil, err
 		}
@@ -111,8 +109,7 @@ func (c *Config[T]) updateTimestamp() {
 func (c *Config[T]) Update(newConfig T) error {
 	c.data = newConfig
 
-	err := files.Persist(&c.mu, c.data, c.activeFile)
-
+	err := files.Persist(&c.mu, c.data, c.file)
 	if err != nil {
 		return err
 	}
@@ -124,7 +121,6 @@ func (c *Config[T]) Update(newConfig T) error {
 		if len(channel) != 0 {
 			continue
 		}
-
 		channel <- true
 	}
 
