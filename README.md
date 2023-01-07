@@ -41,13 +41,14 @@ type ConfigType struct {
 Initialize and use config:
 
 ```go
-config := config.Init[ConfigType]()
+// creates default goconfig instance with JSON file handler
+c, _ := goconfig.Init[ConfigType](handler.New())
 
 // access current configuration attributes
-cfg := config.GetCfg()
+cfg := c.GetCfg()
 
 // update current configuration
-config.UpdateConfig(cfg)
+c.UpdateConfig(cfg)
 ```
 
 If you have modules which needs to be notified on config change, add a listener/subscriber:
@@ -60,7 +61,7 @@ Implement waiting goroutine for config change on the fly in your modules:
 
 ```go
 for {
-    _ = <-config.GetSubscriber("name_of_subscriber")
+    _ = <-c.GetSubscriber("name_of_subscriber")
     reconfigureModule()
 }
 ```
@@ -71,8 +72,10 @@ You can remove subscriber by given name on the fly as well:
 c.RemoveSubscriber("name_of_subscriber")
 ```
 
-Library also support optional parameters with high order functions:
+Library default handlers also support optional parameters with high order functions
+You can specify custom path, name and file handler (currently: JSON or YAML)
 
 ```go
-config := config.Init[ConfigType](WithPath("./configuration_dir"), WithName("configuration_name"))
+h := handler.New(handler.WithPath("./dir"), handler.WithName("name"), handler.WithType(handler.YAML))
+c, _ := goconfig.Init[ConfigType](h)
 ```
