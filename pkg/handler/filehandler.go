@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -37,7 +36,7 @@ func WithName(n string) Option {
 	}
 }
 
-// Add custom config file path. By default library searches work directory.
+// Add custom config file path. By default library uses work directory.
 func WithPath(p string) Option {
 	return func(o *Optional) {
 		o.Path = p
@@ -54,22 +53,20 @@ func WithType(t FileType) Option {
 }
 
 func New(opts ...Option) (*FileHandler, error) {
-	workDir := files.GetWorkDir()
-	h := FileHandler{}
-
 	o := &Optional{
-		Name: "app",   // Default name for application
-		Path: workDir, // Default configuration filepath
-		Type: JSON,    // Default file handler
+		Name: "app",              // Default name for application
+		Path: files.GetWorkDir(), // Default configuration filepath
+		Type: JSON,               // Default file handler
 	}
 
 	for _, opt := range opts {
 		opt(o)
 	}
 
+	h := FileHandler{}
 	h.fileIO = fileIOFactory(o.Type)
 	if h.fileIO == nil {
-		return nil, errors.New("bad file handler type")
+		return nil, fmt.Errorf("bad file handler type: %s", string(o.Type))
 	}
 
 	h.file = filepath.Join(o.Path, fmt.Sprintf(activeConfig, o.Name, h.fileIO.GetExtension()))

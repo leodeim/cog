@@ -72,8 +72,8 @@ You can remove subscriber by given name on the fly as well:
 c.RemoveSubscriber("name_of_subscriber")
 ```
 
-Library default handlers also support optional parameters with high order functions
-You can specify custom path, name and file handler (currently: JSON or YAML)
+Default handlers also support optional parameters with high order functions.
+You can specify custom path, name and file handler (currently JSON or YAML)
 
 ```go
 h := handler.New(handler.WithPath("./dir"), handler.WithName("name"), handler.WithType(handler.YAML))

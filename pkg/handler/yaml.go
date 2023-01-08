@@ -25,7 +25,7 @@ func (j *Yaml) Write(data any, file string) error {
 
 	err = os.WriteFile(file, yaml, filePermissions)
 	if err != nil {
-		return fmt.Errorf("failed at write to file: %v", err)
+		return fmt.Errorf("failed at write to yaml file: %v", err)
 	}
 
 	return nil
@@ -37,12 +37,12 @@ func (j *Yaml) Read(data any, file string) error {
 
 	configFile, err := os.Open(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed at open yaml file: %v", err)
 	}
 
 	yamlParser := yaml.NewDecoder(configFile)
 	if err = yamlParser.Decode(data); err != nil {
-		return err
+		return fmt.Errorf("failed at reading from yaml file: %v", err)
 	}
 
 	return nil
