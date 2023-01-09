@@ -20,13 +20,13 @@ Config tool for Go applications that require configuration changes on-the-fly.
 go get github.com/leonidasdeim/goconfig
 ```
 
-## How to use
+## Getting started
 
-Initial config that will store configuration information should be placed in root folder named `app.default.json`. Write config structure of your app.
+Initial config that will store configuration information should be placed in root folder named `app.default.json`. Write config structure of your app. Name of the file could be changed using [custom parameters](#custom-parameters)
 
-`goconfig` uses [validator](https://github.com/go-playground/validator) library for validating config struct. For example you can specify required configuration items with `validate:"required"` tag.
+**goconfig** uses [validator](https://github.com/go-playground/validator) library for validating config struct. For example you can specify required configuration items with `validate:"required"` tag. 
 
-`goconfig` also let to you set up default values for entries in configuration with `default:"some value"` tag. Right now, only bool, int and string is supported.
+**goconfig** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only bool, int and string is supported.
 
 Example of config structure:
 
@@ -38,11 +38,20 @@ type ConfigType struct {
 }
 ```
 
-Initialize and use config:
+Import main library and handler package:
 
 ```go
+import (
+	"github.com/leonidasdeim/goconfig"
+	"github.com/leonidasdeim/goconfig/pkg/handler"
+)
+```
+
+Initialize and use config:
+```go
 // creates default goconfig instance with JSON file handler
-c, _ := goconfig.Init[ConfigType](handler.New())
+h, _ := handler.New()
+c, _ := goconfig.Init[ConfigType](h)
 
 // access current configuration attributes
 cfg := c.GetCfg()
@@ -50,6 +59,9 @@ cfg := c.GetCfg()
 // update current configuration
 c.UpdateConfig(cfg)
 ```
+
+
+## Config change notifications
 
 If you have modules which needs to be notified on config change, add a listener/subscriber:
 
@@ -72,10 +84,12 @@ You can remove subscriber by given name on the fly as well:
 c.RemoveSubscriber("name_of_subscriber")
 ```
 
+## Custom parameters
+
 Default handlers also support optional parameters with high order functions.
 You can specify custom path, name and file handler (currently JSON or YAML)
 
 ```go
-h := handler.New(handler.WithPath("./dir"), handler.WithName("name"), handler.WithType(handler.YAML))
+h, _ := handler.New(handler.WithPath("./dir"), handler.WithName("name"), handler.WithType(handler.YAML))
 c, _ := goconfig.Init[ConfigType](h)
 ```
