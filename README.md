@@ -16,6 +16,8 @@
 
 Config tool for Go applications that require configuration changes on-the-fly.
 
+Currently supports **JSON** and **YAML** configuration files by default. But you can always write your own config handler which would implement `ConfigHandler` interface.
+
 ```bash
 go get github.com/leonidasdeim/goconfig
 ```
