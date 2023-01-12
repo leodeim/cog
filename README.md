@@ -16,21 +16,23 @@
 
 Config tool for Go applications that require configuration changes on-the-fly.
 
-Currently supports **JSON** and **YAML** configuration files by default. But you can always write your own config handler which would implement `ConfigHandler` interface.
-
 ```bash
 go get github.com/leonidasdeim/goconfig
 ```
 
+## Overview
+
+Currently **goconfig** supports **JSON** (default) and **YAML** configuration files with built-in `pkg/handler/filehandler.go`. But you can always write your own config handler which would implement `ConfigHandler` interface.
+
+Default config with initial configuration information should be placed in root folder named `app.default.json`. Name and type of the file could be changed using [custom parameters](#custom-parameters)
+
+**Goconfig** uses [validator](https://github.com/go-playground/validator) library for validating config struct. For example you can specify required configuration items with `validate:"required"` tag. 
+
+**Goconfig** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only *bool*, *int* and *string* is supported.
+
 ## Getting started
 
-Initial config that will store configuration information should be placed in root folder named `app.default.json`. Write config structure of your app. Name of the file could be changed using [custom parameters](#custom-parameters)
-
-**goconfig** uses [validator](https://github.com/go-playground/validator) library for validating config struct. For example you can specify required configuration items with `validate:"required"` tag. 
-
-**goconfig** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only bool, int and string is supported.
-
-Example of config structure:
+Write config structure of your app. Example of config structure:
 
 ```go
 type ConfigType struct {
@@ -58,12 +60,12 @@ c, _ := goconfig.Init[ConfigType](h)
 // access current configuration attributes
 cfg := c.GetCfg()
 
-// update current configuration
+// make some changes to 'cfg' and update current configuration
 c.UpdateConfig(cfg)
 ```
 
 
-## Config change notifications
+## Change notifications
 
 If you have modules which needs to be notified on config change, add a listener/subscriber:
 
