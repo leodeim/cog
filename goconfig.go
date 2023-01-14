@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/leonidasdeim/goconfig/internal/defaults"
+	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
 )
 
 type Config[T any] struct {
@@ -27,22 +28,19 @@ type ConfigHandler interface {
 // Receives config handler.
 // To use default builtin JSON file handler:
 // c, err := goconfig.Init[ConfigStruct](handler.New())
-func Init[T any](handler ConfigHandler) (*Config[T], error) {
-	if handler == nil {
-		panic("nil handler")
-	}
+func Init[T any](handler ...ConfigHandler) (*Config[T], error) {
+	c := Config[T]{}
 
-	c := Config[T]{
-		handler: handler,
-		subs:    make(map[string]chan bool),
+	if len(handler) > 0 {
+		c.handler = handler[0]
+	} else {
+		c.handler, _ = fh.New() // default JSON file handler
 	}
+	c.subs = make(map[string]chan bool)
 
-	err := c.load()
-	if err != nil {
-		return nil, err
-	}
+	c.load()
 
-	err = c.defaults()
+	err := c.defaults()
 	if err != nil {
 		return nil, err
 	}
@@ -125,12 +123,11 @@ func (c *Config[T]) GetCfg() T {
 	return c.data
 }
 
-func (c *Config[T]) load() error {
+func (c *Config[T]) load() {
 	err := c.handler.Load(&c.data)
 	if err != nil {
-		return err
+		c.data = *new(T)
 	}
-	return nil
 }
 
 func (c *Config[T]) save() error {
