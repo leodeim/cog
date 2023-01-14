@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/leonidasdeim/goconfig/internal/files"
-	"github.com/leonidasdeim/goconfig/pkg/handler"
+	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
 )
 
 type TestConfig struct {
@@ -28,7 +28,7 @@ const defaultConfig = appName + ".default.%s"
 const testDir = "testDir/"
 
 type TestCaseForFileType struct {
-	Type                     handler.FileType
+	Type                     fh.FileType
 	TestString               string
 	TestStringWithoutVersion string
 	TestStringWithDefaults   string
@@ -36,13 +36,13 @@ type TestCaseForFileType struct {
 
 var testCases = []TestCaseForFileType{
 	{
-		handler.JSON,
+		fh.JSON,
 		"{\"name\":\"config_test\",\"version\":123}",
 		"{\"name\":\"config_test\"}",
 		"{\"version\":123}",
 	},
 	{
-		handler.YAML,
+		fh.YAML,
 		"name: config_test\nversion: 123\n",
 		"name: config_test\n",
 		"version: 123\n",
@@ -56,7 +56,7 @@ func Test_AllCases(t *testing.T) {
 	}
 }
 
-func setup(fn string, path string, ft handler.FileType, data string, subs []string) (*Config[TestConfig], error) {
+func setup(fn string, path string, ft fh.FileType, data string, subs []string) (*Config[TestConfig], error) {
 	if path != "" {
 		err := os.Mkdir(path, os.ModePerm)
 		if err != nil {
@@ -70,7 +70,7 @@ func setup(fn string, path string, ft handler.FileType, data string, subs []stri
 		return nil, err
 	}
 
-	h, err := handler.New(handler.WithName(appName), handler.WithPath(path), handler.WithType(ft))
+	h, err := fh.New(fh.WithName(appName), fh.WithPath(path), fh.WithType(ft))
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +113,28 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		}
 	})
 
+	t.Run("Check default handler "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+
+		type ConfigNoRequiredFields struct {
+			Name      string `default:"app"`
+			Version   int
+			IsPrefork bool `default:"true"`
+		}
+
+		_, err := Init[ConfigNoRequiredFields]()
+		if err != nil {
+			t.Errorf("Error while initializing library: %v", err)
+			t.FailNow()
+		}
+
+		if !files.Exists("app.json") {
+			t.Error("Expected active config file to be created, but it does not exist")
+		}
+
+		os.Remove("app.json")
+	})
+
 	t.Run("Check loaded config data from active config "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
@@ -133,7 +155,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Create active config file "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		_, err := setup(fmt.Sprintf(activeConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
 			t.Errorf("Error while setting up test: %v", err)
 			t.FailNow()
@@ -142,7 +164,6 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		if !files.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
 			t.Error("Expected active config file to be created, but it does not exist")
 		}
-		os.Remove(fmt.Sprintf(activeConfig, string(tc.Type)))
 	})
 
 	t.Run("Check active config file content "+string(tc.Type), func(t *testing.T) {

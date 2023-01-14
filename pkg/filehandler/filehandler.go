@@ -1,4 +1,4 @@
-package handler
+package filehandler
 
 import (
 	"fmt"
@@ -72,7 +72,7 @@ func New(opts ...Option) (*FileHandler, error) {
 	h.file = filepath.Join(o.Path, fmt.Sprintf(activeConfig, o.Name, h.fileIO.GetExtension()))
 	defaultFile := filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, h.fileIO.GetExtension()))
 
-	if !files.Exists(h.file) {
+	if !files.Exists(h.file) && files.Exists(defaultFile) {
 		if err := h.initFileFrom(defaultFile); err != nil {
 			return nil, err
 		}
