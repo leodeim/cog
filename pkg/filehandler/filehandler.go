@@ -44,8 +44,8 @@ func WithPath(p string) Option {
 }
 
 // Specify handler type.
-// - handler.JSON (default)
-// - handler.YAML
+// - filehandler.JSON (default)
+// - filehandler.YAML
 func WithType(t FileType) Option {
 	return func(o *Optional) {
 		o.Type = t
@@ -53,10 +53,12 @@ func WithType(t FileType) Option {
 }
 
 func New(opts ...Option) (*FileHandler, error) {
+
+	// Set defaults
 	o := &Optional{
-		Name: "app",              // Default name for application
-		Path: files.GetWorkDir(), // Default configuration filepath
-		Type: JSON,               // Default file handler
+		Name: "app",
+		Path: files.GetWorkDir(),
+		Type: JSON,
 	}
 
 	for _, opt := range opts {
@@ -69,13 +71,12 @@ func New(opts ...Option) (*FileHandler, error) {
 		return nil, fmt.Errorf("bad file handler type: %s", string(o.Type))
 	}
 
-	h.file = filepath.Join(o.Path, fmt.Sprintf(activeConfig, o.Name, h.fileIO.GetExtension()))
-	defaultFile := filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, h.fileIO.GetExtension()))
+	e := h.fileIO.GetExtension()
+	h.file = filepath.Join(o.Path, fmt.Sprintf(activeConfig, o.Name, e))
+	defaultFile := filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, e))
 
-	if !files.Exists(h.file) && files.Exists(defaultFile) {
-		if err := h.initFileFrom(defaultFile); err != nil {
-			return nil, err
-		}
+	if err := h.initFrom(defaultFile); err != nil {
+		return nil, err
 	}
 
 	return &h, nil
@@ -89,14 +90,21 @@ func (h *FileHandler) Save(data any) error {
 	return h.fileIO.Write(data, h.file)
 }
 
-func (h *FileHandler) initFileFrom(def string) error {
+func (h *FileHandler) initFrom(def string) error {
+	if files.Exists(h.file) {
+		return nil
+	}
+
+	if !files.Exists(def) {
+		return nil
+	}
+
 	var t interface{}
 
-	if files.Exists(def) {
-		if err := h.fileIO.Read(&t, def); err != nil {
-			return err
-		}
+	if err := h.fileIO.Read(&t, def); err != nil {
+		return err
 	}
+
 	if err := h.fileIO.Write(t, h.file); err != nil {
 		return err
 	}
