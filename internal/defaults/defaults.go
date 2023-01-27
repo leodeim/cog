@@ -10,16 +10,27 @@ const defaultTag = "default"
 
 func Set[T any](data *T) error {
 	v := reflect.ValueOf(data).Elem()
-	t := v.Type()
+	return setNested(v)
+}
 
-	for i := 0; i < t.NumField(); i++ {
-		if defaultVal := t.Field(i).Tag.Get(defaultTag); defaultVal != "" {
-			if err := setField(v.Field(i), defaultVal); err != nil {
-				return err
+func setNested(v reflect.Value) error {
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).Kind() == reflect.Struct {
+			setNested(v.Field(i))
+		} else {
+			t := v.Type()
+			for i := 0; i < t.NumField(); i++ {
+				if defaultVal := t.Field(i).Tag.Get(defaultTag); defaultVal != "" {
+					if err := setField(v.Field(i), defaultVal); err != nil {
+						return err
+					}
+
+				}
 			}
 
 		}
 	}
+
 	return nil
 }
 
