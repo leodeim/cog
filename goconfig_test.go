@@ -116,9 +116,15 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check default handler "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
+		type Connection struct {
+			Host string `json:"host" default:"localhost"`
+			Port string `json:"port" default:"123"`
+		}
+
 		type ConfigNoRequiredFields struct {
 			Name      string `default:"app"`
 			Version   int
+			Store     Connection
 			IsPrefork bool `default:"true"`
 		}
 
