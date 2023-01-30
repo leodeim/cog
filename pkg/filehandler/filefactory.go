@@ -14,6 +14,8 @@ func fileIOFactory(t FileType) fileIO {
 		return &Json{}
 	case YAML:
 		return &Yaml{}
+	case TOML:
+		return &Toml{}
 	default:
 		return nil
 	}
