@@ -47,6 +47,12 @@ var testCases = []TestCaseForFileType{
 		"name: config_test\n",
 		"version: 123\n",
 	},
+	{
+		fh.TOML,
+		"name = \"config_test\"\nversion = 123\n",
+		"name = \"config_test\"\n",
+		"version = 123\n",
+	},
 }
 
 func Test_AllCases(t *testing.T) {

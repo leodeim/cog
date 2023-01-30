@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/go-playground/validator/v10 v10.11.1
+	github.com/pelletier/go-toml/v2 v2.0.6
 	gopkg.in/yaml.v3 v3.0.1
 )
 

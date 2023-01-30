@@ -104,7 +104,7 @@ c, _ := goconfig.Init[ConfigType](h)
 ## Custom parameters
 
 Handlers also support optional parameters with high order functions.
-You can specify custom path, name and file handler (currently JSON or YAML)
+You can specify custom path, name and file handler (currently JSON, YAML and TOML are supported by default)
 
 ```go
 h, _ := fh.New(fh.WithPath("./dir"), fh.WithName("name"), fh.WithType(fh.JSON))

@@ -14,9 +14,9 @@ type Yaml struct {
 	m sync.Mutex
 }
 
-func (j *Yaml) Write(data any, file string) error {
-	j.m.Lock()
-	defer j.m.Unlock()
+func (y *Yaml) Write(data any, file string) error {
+	y.m.Lock()
+	defer y.m.Unlock()
 
 	yaml, err := yaml.Marshal(data)
 	if err != nil {
@@ -31,9 +31,9 @@ func (j *Yaml) Write(data any, file string) error {
 	return nil
 }
 
-func (j *Yaml) Read(data any, file string) error {
-	j.m.Lock()
-	defer j.m.Unlock()
+func (y *Yaml) Read(data any, file string) error {
+	y.m.Lock()
+	defer y.m.Unlock()
 
 	configFile, err := os.Open(file)
 	if err != nil {
@@ -48,6 +48,6 @@ func (j *Yaml) Read(data any, file string) error {
 	return nil
 }
 
-func (j *Yaml) GetExtension() string {
+func (y *Yaml) GetExtension() string {
 	return string(YAML)
 }
