@@ -1,14 +1,13 @@
-package filehandler
+package impl
 
 import (
 	"fmt"
 	"os"
 	"sync"
 
+	"github.com/leonidasdeim/goconfig/internal/files"
 	"gopkg.in/yaml.v3"
 )
-
-const YAML FileType = "yaml"
 
 type Yaml struct {
 	m sync.Mutex
@@ -23,7 +22,7 @@ func (y *Yaml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal yaml: %v", err)
 	}
 
-	err = os.WriteFile(file, yaml, filePermissions)
+	err = files.Write(file, yaml)
 	if err != nil {
 		return fmt.Errorf("failed at write to yaml file: %v", err)
 	}
@@ -49,5 +48,5 @@ func (y *Yaml) Read(data any, file string) error {
 }
 
 func (y *Yaml) GetExtension() string {
-	return string(YAML)
+	return "yaml"
 }

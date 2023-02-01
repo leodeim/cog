@@ -22,7 +22,7 @@ go get github.com/leonidasdeim/goconfig
 
 ## Overview
 
-Currently **goconfig** supports **JSON** (default) and **YAML** configuration files with built-in `pkg/handler/filehandler.go`. How to use built-in file handlers find [here](#file-handler-type). You can always write your own handler which would implement `ConfigHandler` interface.
+Currently **goconfig** supports **JSON**, **YAML** and **TOML** configuration files with built-in `pkg/handler/filehandler.go`. By default it dynamically detects configuration file type. If you want to specify file type, [here](#file-handler-type) you can find how to use built-in file handlers. You can always write your own handler which would implement `ConfigHandler` interface.
 
 Default config with initial configuration information should be placed in root folder named `<name>.default.<type>`. Name and type of the file could be changed using [custom parameters](#custom-parameters). **Goconfig** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only *bool*, *int* and *string* is supported.
 
@@ -86,7 +86,7 @@ c.RemoveSubscriber("name_of_subscriber")
 
 ## File handler type
 
-By default **goconfig** initializes with JSON file handler. You can specify type by creating handler instance and providing it during initialization.
+By default **goconfig** initializes with dynamic file handler. You can specify type (JSON, YAML or TOML) by creating handler instance and providing it during initialization.
 
 Import built-in filehandler
 ```go
@@ -104,7 +104,7 @@ c, _ := goconfig.Init[ConfigType](h)
 ## Custom parameters
 
 Handlers also support optional parameters with high order functions.
-You can specify custom path, name and file handler (currently JSON, YAML and TOML are supported by default)
+You can specify custom path, name and file handler.
 
 ```go
 h, _ := fh.New(fh.WithPath("./dir"), fh.WithName("name"), fh.WithType(fh.JSON))

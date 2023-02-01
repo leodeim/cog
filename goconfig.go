@@ -34,7 +34,7 @@ func Init[T any](handler ...ConfigHandler) (*Config[T], error) {
 	if len(handler) > 0 {
 		c.handler = handler[0]
 	} else {
-		c.handler, _ = fh.New() // default JSON file handler
+		c.handler, _ = fh.New() // default DYNAMIC file handler
 	}
 	c.subs = make(map[string]chan bool)
 

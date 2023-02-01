@@ -4,6 +4,8 @@ import (
 	"os"
 )
 
+const filePermissions = 0664
+
 func Exists(file string) bool {
 	if _, err := os.Stat(file); err == nil {
 		return true
@@ -19,4 +21,8 @@ func GetWorkDir() string {
 	}
 
 	return wd
+}
+
+func Write(name string, data []byte) error {
+	return os.WriteFile(name, data, filePermissions)
 }
