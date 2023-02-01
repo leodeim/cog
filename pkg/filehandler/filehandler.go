@@ -68,7 +68,7 @@ func New(opts ...Option) (*FileHandler, error) {
 	}
 
 	h := FileHandler{}
-	h.fileIO = FileIOFactory(o)
+	h.fileIO = BuildFileIO(o)
 	if h.fileIO == nil {
 		return nil, fmt.Errorf("bad file type, or dynamic type has not been resolved: %s", string(o.Type))
 	}

@@ -1,14 +1,13 @@
-package filehandler
+package impl
 
 import (
 	"fmt"
 	"os"
 	"sync"
 
+	"github.com/leonidasdeim/goconfig/internal/files"
 	"github.com/pelletier/go-toml/v2"
 )
-
-const TOML FileType = "toml"
 
 type Toml struct {
 	m sync.Mutex
@@ -23,7 +22,7 @@ func (t *Toml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal toml: %v", err)
 	}
 
-	err = os.WriteFile(file, toml, filePermissions)
+	err = files.Write(file, toml)
 	if err != nil {
 		return fmt.Errorf("failed at write to toml file: %v", err)
 	}
@@ -49,5 +48,5 @@ func (t *Toml) Read(data any, file string) error {
 }
 
 func (t *Toml) GetExtension() string {
-	return string(TOML)
+	return "toml"
 }

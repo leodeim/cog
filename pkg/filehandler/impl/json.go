@@ -1,13 +1,18 @@
-package filehandler
+package impl
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
+
+	"github.com/leonidasdeim/goconfig/internal/files"
 )
 
-const JSON FileType = "json"
+const (
+	marshalIndent = "	"
+	emptySpace    = ""
+)
 
 type Json struct {
 	m sync.Mutex
@@ -22,7 +27,7 @@ func (j *Json) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal json: %v", err)
 	}
 
-	err = os.WriteFile(file, json, filePermissions)
+	err = files.Write(file, json)
 	if err != nil {
 		return fmt.Errorf("failed at write to json file: %v", err)
 	}
@@ -48,5 +53,5 @@ func (j *Json) Read(data any, file string) error {
 }
 
 func (j *Json) GetExtension() string {
-	return string(JSON)
+	return "json"
 }

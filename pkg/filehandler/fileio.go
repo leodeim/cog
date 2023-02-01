@@ -5,9 +5,23 @@ import (
 	"path/filepath"
 
 	"github.com/leonidasdeim/goconfig/internal/files"
+	"github.com/leonidasdeim/goconfig/pkg/filehandler/impl"
 )
 
 type FileType string
+
+const (
+	JSON    FileType = "json"
+	YAML    FileType = "yaml"
+	TOML    FileType = "toml"
+	DYNAMIC FileType = "dynamic"
+)
+
+var implementations = []FileType{
+	JSON,
+	YAML,
+	TOML,
+}
 
 type FileIO interface {
 	Write(data any, file string) error
@@ -15,7 +29,7 @@ type FileIO interface {
 	GetExtension() string
 }
 
-func FileIOFactory(o *Optional) FileIO {
+func BuildFileIO(o *Optional) FileIO {
 	t := o.Type
 
 	if t == DYNAMIC {
@@ -24,26 +38,18 @@ func FileIOFactory(o *Optional) FileIO {
 
 	switch t {
 	case JSON:
-		return &Json{}
+		return &impl.Json{}
 	case YAML:
-		return &Yaml{}
+		return &impl.Yaml{}
 	case TOML:
-		return &Toml{}
+		return &impl.Toml{}
 	default:
 		return nil
 	}
 }
 
-var types = []FileType{
-	JSON,
-	YAML,
-	TOML,
-}
-
-const DYNAMIC FileType = "dynamic"
-
 func resolveDynamic(o *Optional) FileType {
-	for _, t := range types {
+	for _, t := range implementations {
 		if files.Exists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
 			return t
 		}
