@@ -304,6 +304,27 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 			t.Error("Expected config does not match the result")
 		}
 	})
+
+	t.Run("Check if dynamic type is resolved correctly "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", fh.DYNAMIC, tc.TestString, []string{})
+		if err != nil {
+			t.Errorf("Error while setting up test: %v", err)
+			t.FailNow()
+		}
+
+		want := testData
+		got := c.GetCfg()
+
+		if !reflect.DeepEqual(want, got) {
+			t.Error("Expected config does not match the result")
+		}
+
+		if !files.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
+			t.Error("Expected active config file to be created with correct filetype")
+		}
+	})
 }
 
 func UpdateTests(t *testing.T, tc TestCaseForFileType) {
