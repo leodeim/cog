@@ -17,7 +17,7 @@ const (
 	DYNAMIC FileType = "dynamic"
 )
 
-var implementations = []FileType{
+var availableImpl = []FileType{
 	JSON,
 	YAML,
 	TOML,
@@ -30,13 +30,7 @@ type FileIO interface {
 }
 
 func BuildFileIO(o *Optional) FileIO {
-	t := o.Type
-
-	if t == DYNAMIC {
-		t = resolveDynamic(o)
-	}
-
-	switch t {
+	switch resolveType(o) {
 	case JSON:
 		return &impl.Json{}
 	case YAML:
@@ -48,8 +42,12 @@ func BuildFileIO(o *Optional) FileIO {
 	}
 }
 
-func resolveDynamic(o *Optional) FileType {
-	for _, t := range implementations {
+func resolveType(o *Optional) FileType {
+	if o.Type != DYNAMIC {
+		return o.Type
+	}
+
+	for _, t := range availableImpl {
 		if files.Exists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
 			return t
 		}

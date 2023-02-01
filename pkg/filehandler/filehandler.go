@@ -8,10 +8,6 @@ import (
 )
 
 const (
-	marshalIndent   = "	"
-	emptySpace      = ""
-	filePermissions = 0664
-
 	defaultConfig = "%s.default.%s"
 	activeConfig  = "%s.%s"
 )
