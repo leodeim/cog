@@ -13,13 +13,14 @@ import (
 )
 
 type TestConfig struct {
-	Name      string `default:"app"`
+	Name      string `default:"app" env:"TEST_ENV_NAME"`
 	Version   int    `validate:"required"`
 	IsPrefork bool   `default:"true"`
 }
 
 var testData = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
 var testDataDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
+var testDataEnvName = TestConfig{Name: "env_name", Version: 123, IsPrefork: true}
 
 const permissions = 0664
 const appName = "test_app"
@@ -99,11 +100,30 @@ func cleanup() {
 		os.Remove(fmt.Sprintf(defaultConfig, tc.Type))
 	}
 	os.RemoveAll(testDir)
+	os.Setenv("TEST_ENV_NAME", "")
 }
 
 func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check loaded config data "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
+
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		if err != nil {
+			t.Errorf("Error while setting up test: %v", err)
+			t.FailNow()
+		}
+
+		want := testData
+		got := c.GetCfg()
+
+		if !reflect.DeepEqual(want, got) {
+			t.Error("Expected config does not match the result")
+		}
+	})
+
+	t.Run("Check if file data overwrites env variable "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+		os.Setenv("TEST_ENV_NAME", "env_name")
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
@@ -298,6 +318,24 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		}
 
 		want := testDataDefaultName
+		got := c.GetCfg()
+
+		if !reflect.DeepEqual(want, got) {
+			t.Error("Expected config does not match the result")
+		}
+	})
+
+	t.Run("Check if environment values are set "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+		os.Setenv("TEST_ENV_NAME", "env_name")
+
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{})
+		if err != nil {
+			t.Errorf("Failed to set default values")
+			t.FailNow()
+		}
+
+		want := testDataEnvName
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {

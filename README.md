@@ -26,17 +26,20 @@ Currently **goconfig** supports **JSON**, **YAML** and **TOML** configuration fi
 
 Default config with initial configuration information should be placed in root folder named `<name>.default.<type>`. Name and type of the file could be changed using [custom parameters](#custom-parameters). **Goconfig** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only *bool*, *int* and *string* is supported.
 
+It is possible to load config fields values from **environment variables** using `env:"ENV_VAR_NAME"` tag. With this tag **goconfig** will take env. variable value and use it if field value not provided in the config file.
+
 **Goconfig** uses [validator](https://github.com/go-playground/validator) library for validating loaded configuration. For example you can specify required configuration items with `validate:"required"` tag.
 
 ## Getting started
 
-Write config structure of your app. Example of config structure:
+Write config structure of your app. Example of config structure with different tags:
 
 ```go
 type ConfigType struct {
-    Version   string `validate:"required"`
-    Address   string `validate:"required,ip"`
-    Prefork   bool `default:"false"`
+    Version   string // simple field, will be empty string if not provided
+    Version   string `validate:"required"` // will fail if not provided
+    Address   string `validate:"required,ip" env:"SERVER_IP_ADDRESS"` // tries to load from env. variable "SERVER_IP_ADDRESS" if not provided in the config file
+    Prefork   bool `default:"false"` // sets default value "false" if field not provided in the config file
 }
 ```
 

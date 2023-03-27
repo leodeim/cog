@@ -24,6 +24,8 @@ type ConfigHandler interface {
 	Save(data any) error
 }
 
+var _ ConfigHandler = (*fh.FileHandler)(nil)
+
 // Initialize library. Returns goconfig instance.
 // Receives config handler.
 // To use default builtin JSON file handler:
@@ -151,7 +153,7 @@ func (c *Config[T]) validate() error {
 func (c *Config[T]) defaults() error {
 	err := defaults.Set(&c.data)
 	if err != nil {
-		return fmt.Errorf("failed to set default values: %v", err)
+		return fmt.Errorf("failed to set env/default values: %v", err)
 	}
 	return nil
 }
