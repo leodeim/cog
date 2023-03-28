@@ -24,8 +24,6 @@ type ConfigHandler interface {
 	Save(data any) error
 }
 
-var _ ConfigHandler = (*fh.FileHandler)(nil)
-
 // Initialize library. Returns goconfig instance.
 // Receives config handler.
 // To use default builtin JSON file handler:

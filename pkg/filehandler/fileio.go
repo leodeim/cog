@@ -29,10 +29,6 @@ type FileIO interface {
 	GetExtension() string
 }
 
-var _ FileIO = (*impl.Json)(nil)
-var _ FileIO = (*impl.Yaml)(nil)
-var _ FileIO = (*impl.Toml)(nil)
-
 func BuildFileIO(o *Optional) FileIO {
 	switch resolveType(o) {
 	case JSON:

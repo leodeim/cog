@@ -9,7 +9,7 @@ import (
 
 type getValue func(reflect.StructField) string
 
-var tags = []getValue{
+var tagHandlers = []getValue{
 	environmentValue("env"),
 	defaultValue("default"),
 }
@@ -17,9 +17,7 @@ var tags = []getValue{
 func environmentValue(tag string) getValue {
 	return func(sf reflect.StructField) string {
 		if env := sf.Tag.Get(tag); env != "" {
-			if val := os.Getenv(env); val != "" {
-				return val
-			}
+			return os.Getenv(env)
 		}
 
 		return ""
@@ -58,9 +56,8 @@ func setNested(v reflect.Value) error {
 }
 
 func setField(sf reflect.StructField, f reflect.Value) error {
-	for _, getValue := range tags {
-		err := setValue(f, getValue(sf))
-		if err != nil {
+	for _, getValue := range tagHandlers {
+		if err := setValue(f, getValue(sf)); err != nil {
 			return err
 		}
 	}
@@ -74,7 +71,7 @@ func setValue(field reflect.Value, val string) error {
 	}
 
 	if !field.CanSet() {
-		return fmt.Errorf("can't set value")
+		return fmt.Errorf("can't set value: %s", val)
 	}
 
 	if !isEmpty(field) {
