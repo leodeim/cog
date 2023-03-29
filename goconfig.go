@@ -151,7 +151,7 @@ func (c *Config[T]) validate() error {
 func (c *Config[T]) defaults() error {
 	err := defaults.Set(&c.data)
 	if err != nil {
-		return fmt.Errorf("failed to set default values: %v", err)
+		return fmt.Errorf("failed to set env/default values: %v", err)
 	}
 	return nil
 }

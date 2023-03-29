@@ -13,19 +13,23 @@ import (
 )
 
 type TestConfig struct {
-	Name      string `default:"app"`
+	Name      string `default:"app" env:"TEST_ENV_NAME"`
 	Version   int    `validate:"required"`
 	IsPrefork bool   `default:"true"`
 }
 
 var testData = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
 var testDataDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
+var testDataEnvName = TestConfig{Name: "env_name", Version: 123, IsPrefork: true}
 
 const permissions = 0664
 const appName = "test_app"
 const activeConfig = appName + ".%s"
 const defaultConfig = appName + ".default.%s"
 const testDir = "testDir/"
+
+const testSetupErrorMsg = "Error while setting up test: %v"
+const expectedResultErrorMsg = "Expected config does not match the result"
 
 type TestCaseForFileType struct {
 	Type                     fh.FileType
@@ -99,6 +103,7 @@ func cleanup() {
 		os.Remove(fmt.Sprintf(defaultConfig, tc.Type))
 	}
 	os.RemoveAll(testDir)
+	os.Setenv("TEST_ENV_NAME", "")
 }
 
 func InitTests(t *testing.T, tc TestCaseForFileType) {
@@ -107,7 +112,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -115,7 +120,25 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
+		}
+	})
+
+	t.Run("Check if file data overwrites env variable "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+		os.Setenv("TEST_ENV_NAME", "env_name")
+
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		if err != nil {
+			t.Errorf(testSetupErrorMsg, err)
+			t.FailNow()
+		}
+
+		want := testData
+		got := c.GetCfg()
+
+		if !reflect.DeepEqual(want, got) {
+			t.Error(expectedResultErrorMsg)
 		}
 	})
 
@@ -152,7 +175,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(activeConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -160,7 +183,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
 		}
 	})
 
@@ -169,7 +192,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 
 		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -183,7 +206,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -197,7 +220,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		got := fileContent
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
 		}
 	})
 
@@ -206,7 +229,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -221,7 +244,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		subscribers := [5]string{"test1", "test2", "test3", "test4", "test5"}
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -250,7 +273,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), testDir, tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -270,7 +293,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
 			t.FailNow()
 		}
 	})
@@ -301,7 +324,25 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
+		}
+	})
+
+	t.Run("Check if environment values are set "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+		os.Setenv("TEST_ENV_NAME", "env_name")
+
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{})
+		if err != nil {
+			t.Errorf("Failed to set default values")
+			t.FailNow()
+		}
+
+		want := testDataEnvName
+		got := c.GetCfg()
+
+		if !reflect.DeepEqual(want, got) {
+			t.Error(expectedResultErrorMsg)
 		}
 	})
 
@@ -310,7 +351,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", fh.DYNAMIC, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -318,7 +359,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
 		}
 
 		if !files.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
@@ -336,7 +377,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -350,7 +391,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
 		}
 	})
 
@@ -360,7 +401,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		subscribers := [5]string{"test1", "test2", "test3"}
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -377,7 +418,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		subscribers := [1]string{"test1"}
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -399,7 +440,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		subscribers := [1]string{"test1"}
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -417,7 +458,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
 		if err != nil {
-			t.Errorf("Error while setting up test: %v", err)
+			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
 		}
 
@@ -432,7 +473,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		got := c.GetCfg()
 
 		if !reflect.DeepEqual(want, got) {
-			t.Error("Expected config does not match the result")
+			t.Error(expectedResultErrorMsg)
 		}
 	})
 }
