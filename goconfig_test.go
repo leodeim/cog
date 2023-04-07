@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/leonidasdeim/goconfig/internal/files"
 	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
@@ -66,7 +67,7 @@ func Test_AllCases(t *testing.T) {
 	}
 }
 
-func setup(fn string, path string, ft fh.FileType, data string, subs []string) (*Config[TestConfig], error) {
+func setup(fn string, path string, ft fh.FileType, data string, subs []string, callbacks []UpdateCallback[TestConfig]) (*Config[TestConfig], error) {
 	if path != "" {
 		err := os.Mkdir(path, os.ModePerm)
 		if err != nil {
@@ -94,6 +95,10 @@ func setup(fn string, path string, ft fh.FileType, data string, subs []string) (
 		c.AddSubscriber(s)
 	}
 
+	for _, cb := range callbacks {
+		c.AddCallback(cb)
+	}
+
 	return c, nil
 }
 
@@ -110,7 +115,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check loaded config data "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -128,7 +133,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		t.Cleanup(cleanup)
 		os.Setenv("TEST_ENV_NAME", "env_name")
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -173,7 +178,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check loaded config data from active config "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(activeConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(activeConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -190,7 +195,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Create active config file "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -204,7 +209,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check active config file content "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -227,7 +232,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check timestamp is created "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -242,7 +247,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		t.Cleanup(cleanup)
 
 		subscribers := [5]string{"test1", "test2", "test3", "test4", "test5"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:], []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -257,7 +262,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		t.Cleanup(cleanup)
 
 		subscribers := [5]string{"test1"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:], []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Error("Error while setting up test")
 			t.FailNow()
@@ -271,7 +276,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Custom config path "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), testDir, tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), testDir, tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -301,7 +306,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check required fields validation "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithoutVersion, []string{})
+		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithoutVersion, []string{}, []UpdateCallback[TestConfig]{})
 		if err == nil {
 			t.Errorf("Error is not returned")
 			t.FailNow()
@@ -314,7 +319,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check if default values are set "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf("Failed to set default values")
 			t.FailNow()
@@ -332,7 +337,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		t.Cleanup(cleanup)
 		os.Setenv("TEST_ENV_NAME", "env_name")
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf("Failed to set default values")
 			t.FailNow()
@@ -349,7 +354,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check if dynamic type is resolved correctly "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", fh.DYNAMIC, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", fh.DYNAMIC, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -366,6 +371,28 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 			t.Error("Expected active config file to be created with correct filetype")
 		}
 	})
+
+	t.Run("Check callbacks being registered "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+
+		callbacks := [2]UpdateCallback[TestConfig]{
+			func(tc TestConfig) {
+				// empty
+			},
+			func(tc TestConfig) {
+				// empty
+			},
+		}
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, callbacks[:])
+		if err != nil {
+			t.Errorf(testSetupErrorMsg, err)
+			t.FailNow()
+		}
+
+		if len(c.callbacks) != len(callbacks) {
+			t.Error("Expected number of callbacks is not correct")
+		}
+	})
 }
 
 func UpdateTests(t *testing.T, tc TestCaseForFileType) {
@@ -375,7 +402,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check if config is updated "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -399,7 +426,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		t.Cleanup(cleanup)
 
 		subscribers := [5]string{"test1", "test2", "test3"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:], []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -412,11 +439,41 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		}
 	})
 
+	t.Run("Check callbacks are being notified "+string(tc.Type), func(t *testing.T) {
+		t.Cleanup(cleanup)
+
+		cb1 := 0
+		cb2 := 0
+		callbacks := [2]UpdateCallback[TestConfig]{
+			func(tc TestConfig) {
+				cb1++
+			},
+			func(tc TestConfig) {
+				cb2++
+			},
+		}
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, callbacks[:])
+		if err != nil {
+			t.Errorf(testSetupErrorMsg, err)
+			t.FailNow()
+		}
+
+		c.Update(newData)
+		c.Update(newData)
+		c.Update(newData)
+
+		time.Sleep(100 * time.Millisecond)
+
+		if cb1 != 3 || cb2 != 3 {
+			t.Error("Callbacks are not being called")
+		}
+	})
+
 	t.Run("Check channel read "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
 		subscribers := [1]string{"test1"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:], []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -438,7 +495,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		t.Cleanup(cleanup)
 
 		subscribers := [1]string{"test1"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:], []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()
@@ -456,7 +513,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 	t.Run("Check if config is validated "+string(tc.Type), func(t *testing.T) {
 		t.Cleanup(cleanup)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
+		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, []UpdateCallback[TestConfig]{})
 		if err != nil {
 			t.Errorf(testSetupErrorMsg, err)
 			t.FailNow()

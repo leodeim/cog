@@ -11,12 +11,15 @@ import (
 	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
 )
 
+type UpdateCallback[T any] func(T)
+
 type Config[T any] struct {
-	mu      sync.Mutex
-	data    T
-	time    string
-	subs    map[string](chan bool)
-	handler ConfigHandler
+	mu        sync.Mutex
+	data      T
+	time      string
+	subs      map[string](chan bool)
+	callbacks map[int](UpdateCallback[T])
+	handler   ConfigHandler
 }
 
 type ConfigHandler interface {
@@ -37,6 +40,7 @@ func Init[T any](handler ...ConfigHandler) (*Config[T], error) {
 		c.handler, _ = fh.New() // default DYNAMIC file handler
 	}
 	c.subs = make(map[string]chan bool)
+	c.callbacks = make(map[int]UpdateCallback[T])
 
 	c.load()
 
@@ -85,6 +89,10 @@ func (c *Config[T]) Update(new T) error {
 		channel <- true
 	}
 
+	for _, cb := range c.callbacks {
+		go cb(c.data)
+	}
+
 	return nil
 }
 
@@ -100,6 +108,13 @@ func (c *Config[T]) AddSubscriber(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.subs[key] = make(chan bool, 1)
+}
+
+// Register new callback function. It will be called after config update.
+func (c *Config[T]) AddCallback(f UpdateCallback[T]) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.callbacks[len(c.callbacks)] = f
 }
 
 // Remove subscriber by key.
