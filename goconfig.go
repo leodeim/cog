@@ -18,7 +18,7 @@ type Config[T any] struct {
 	data      T
 	time      string
 	subs      map[string](chan bool)
-	callbacks map[int](UpdateCallback[T])
+	callbacks []UpdateCallback[T]
 	handler   ConfigHandler
 }
 
@@ -40,7 +40,6 @@ func Init[T any](handler ...ConfigHandler) (*Config[T], error) {
 		c.handler, _ = fh.New() // default DYNAMIC file handler
 	}
 	c.subs = make(map[string]chan bool)
-	c.callbacks = make(map[int]UpdateCallback[T])
 
 	c.load()
 
@@ -97,10 +96,14 @@ func (c *Config[T]) Update(new T) error {
 }
 
 // Get subscriber read only channel by key.
-func (c *Config[T]) GetSubscriber(key string) <-chan bool {
+// Returns an error if subscriber key does not exist.
+func (c *Config[T]) GetSubscriber(key string) (<-chan bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.subs[key]
+	if ch, ok := c.subs[key]; ok {
+		return ch, nil
+	}
+	return nil, fmt.Errorf("subscriber is not registered: %s", key)
 }
 
 // Register new subscriber.
@@ -114,7 +117,7 @@ func (c *Config[T]) AddSubscriber(key string) {
 func (c *Config[T]) AddCallback(f UpdateCallback[T]) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.callbacks[len(c.callbacks)] = f
+	c.callbacks = append(c.callbacks, f)
 }
 
 // Remove subscriber by key.

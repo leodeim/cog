@@ -268,7 +268,8 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 			t.FailNow()
 		}
 
-		if len(c.GetSubscriber("test1")) != 0 {
+		ch, _ := c.GetSubscriber("test1")
+		if len(ch) != 0 {
 			t.Error("Subscribers has been notified")
 		}
 	})
@@ -480,7 +481,7 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		}
 
 		c.Update(newData)
-		ch := c.GetSubscriber("test1")
+		ch, _ := c.GetSubscriber("test1")
 
 		select {
 		case <-ch:
