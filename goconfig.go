@@ -11,7 +11,7 @@ import (
 	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
 )
 
-type UpdateCallback[T any] func(T)
+type UpdateCallback[T any] func(T) error
 
 type Config[T any] struct {
 	mu        sync.Mutex

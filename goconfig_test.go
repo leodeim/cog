@@ -377,11 +377,11 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 		t.Cleanup(cleanup)
 
 		callbacks := [2]UpdateCallback[TestConfig]{
-			func(tc TestConfig) {
-				// empty
+			func(tc TestConfig) error {
+				return nil
 			},
-			func(tc TestConfig) {
-				// empty
+			func(tc TestConfig) error {
+				return nil
 			},
 		}
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, callbacks[:])
@@ -446,11 +446,13 @@ func UpdateTests(t *testing.T, tc TestCaseForFileType) {
 		cb1 := 0
 		cb2 := 0
 		callbacks := [2]UpdateCallback[TestConfig]{
-			func(tc TestConfig) {
+			func(tc TestConfig) error {
 				cb1++
+				return nil
 			},
-			func(tc TestConfig) {
+			func(tc TestConfig) error {
 				cb2++
+				return nil
 			},
 		}
 		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{}, callbacks[:])
