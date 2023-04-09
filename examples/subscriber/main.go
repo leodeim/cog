@@ -66,7 +66,13 @@ func (s *Service) connect() {
 func (s *Service) configRunner() {
 	for {
 		s.connect()
-		<-s.config.GetSubscriber(s.serviceName())
+
+		ch, err := s.config.GetSubscriber(s.serviceName())
+		if err != nil {
+			fmt.Println("Subscriber not registered error")
+			return
+		}
+		<-ch
 		fmt.Println("Subscriber notified, because config has been updated")
 	}
 }

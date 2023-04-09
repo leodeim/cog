@@ -66,6 +66,17 @@ For more examples check out `examples/` folder.
 
 ## Change notifications
 
+### Callbacks
+
+Register a callback function, which will be called on config change:
+```go
+c.AddCallback(func(cfg ConfigType) {
+    // handle config update
+})
+```
+
+### Subscription through channels
+
 If you have modules which needs to be notified on config change, add a listener/subscriber:
 
 ```go

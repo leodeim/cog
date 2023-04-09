@@ -11,12 +11,15 @@ import (
 	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
 )
 
+type UpdateCallback[T any] func(T)
+
 type Config[T any] struct {
-	mu      sync.Mutex
-	data    T
-	time    string
-	subs    map[string](chan bool)
-	handler ConfigHandler
+	mu        sync.Mutex
+	data      T
+	time      string
+	subs      map[string](chan bool)
+	callbacks []UpdateCallback[T]
+	handler   ConfigHandler
 }
 
 type ConfigHandler interface {
@@ -85,14 +88,22 @@ func (c *Config[T]) Update(new T) error {
 		channel <- true
 	}
 
+	for _, cb := range c.callbacks {
+		go cb(c.data)
+	}
+
 	return nil
 }
 
 // Get subscriber read only channel by key.
-func (c *Config[T]) GetSubscriber(key string) <-chan bool {
+// Returns an error if subscriber key does not exist.
+func (c *Config[T]) GetSubscriber(key string) (<-chan bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.subs[key]
+	if ch, ok := c.subs[key]; ok {
+		return ch, nil
+	}
+	return nil, fmt.Errorf("subscriber is not registered: %s", key)
 }
 
 // Register new subscriber.
@@ -100,6 +111,13 @@ func (c *Config[T]) AddSubscriber(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.subs[key] = make(chan bool, 1)
+}
+
+// Register new callback function. It will be called after config update.
+func (c *Config[T]) AddCallback(f UpdateCallback[T]) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.callbacks = append(c.callbacks, f)
 }
 
 // Remove subscriber by key.
