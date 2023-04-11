@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/leonidasdeim/goconfig/internal/files"
+	"github.com/leonidasdeim/goconfig/pkg/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,7 +22,7 @@ func (y *Yaml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal yaml: %v", err)
 	}
 
-	err = files.Write(file, yaml)
+	err = utils.Write(file, yaml)
 	if err != nil {
 		return fmt.Errorf("failed at write to yaml file: %v", err)
 	}

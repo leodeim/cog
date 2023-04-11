@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/leonidasdeim/goconfig/internal/files"
 	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
+	"github.com/leonidasdeim/goconfig/pkg/utils"
 )
 
 type TestConfig struct {
@@ -165,7 +165,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 			t.FailNow()
 		}
 
-		if !files.Exists("app.json") {
+		if !utils.Exists("app.json") {
 			t.Error("Expected active config file to be created, but it does not exist")
 		}
 
@@ -198,7 +198,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 			t.FailNow()
 		}
 
-		if !files.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
+		if !utils.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
 			t.Error("Expected active config file to be created, but it does not exist")
 		}
 	})
@@ -365,7 +365,7 @@ func InitTests(t *testing.T, tc TestCaseForFileType) {
 			t.Error(expectedResultErrorMsg)
 		}
 
-		if !files.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
+		if !utils.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
 			t.Error("Expected active config file to be created with correct filetype")
 		}
 	})

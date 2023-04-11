@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/leonidasdeim/goconfig/internal/files"
+	"github.com/leonidasdeim/goconfig/pkg/utils"
 )
 
 const (
@@ -55,7 +55,7 @@ func New(opts ...Option) (*FileHandler, error) {
 	// Set defaults
 	o := &Optional{
 		Name: "app",
-		Path: files.GetWorkDir(),
+		Path: utils.GetWorkDir(),
 		Type: DYNAMIC,
 	}
 
@@ -89,11 +89,11 @@ func (h *FileHandler) Save(data any) error {
 }
 
 func (h *FileHandler) initActiveFile(defaultFile string, activeFile string) error {
-	if files.Exists(activeFile) {
+	if utils.Exists(activeFile) {
 		return nil
 	}
 
-	if !files.Exists(defaultFile) {
+	if !utils.Exists(defaultFile) {
 		return nil
 	}
 

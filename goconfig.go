@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/leonidasdeim/goconfig/internal/defaults"
+	"github.com/leonidasdeim/goconfig/pkg/defaults"
 	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
 )
 
