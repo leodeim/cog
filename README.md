@@ -36,7 +36,7 @@ Write config structure of your app. Example of config structure with different t
 
 ```go
 type ConfigType struct {
-    Version   string // simple field, will be empty string if not provided
+    Name      string // simple field, will be empty string if not provided
     Version   string `validate:"required"` // will fail if not provided
     Address   string `validate:"required,ip" env:"SERVER_IP_ADDRESS"` // tries to load from env. variable "SERVER_IP_ADDRESS" if not provided in the config file
     Prefork   bool `default:"false"` // sets default value "false" if field not provided in the config file
@@ -66,7 +66,7 @@ For more examples check out `examples/` folder.
 
 ## Change notifications
 
-### Callbacks
+### Callback
 
 Register a callback function, which will be called on config change:
 ```go
@@ -75,9 +75,24 @@ c.AddCallback(func(cfg ConfigType) {
 })
 ```
 
-### Subscription through channels
+### Bound
 
-If you have modules which needs to be notified on config change, add a listener/subscriber:
+You can register another type of callback - **bound**. It will be called on config change just like regular callback, but it have different signature: it can return an error.
+In case bound callback returns an error - whole config update is being rolled back.
+Example:
+```go
+c.AddBound(func(cfg ConfigType) error {
+    if err := tryConfigUpdate(cfg); err != nil {
+        return err
+    }
+    return nil
+})
+```
+
+### Subscription
+
+One more option to be notified on config change is through channels.
+To add a listener/subscriber:
 
 ```go
 c.AddSubscriber("name_of_subscriber")
