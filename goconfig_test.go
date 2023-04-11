@@ -14,24 +14,27 @@ import (
 	"github.com/leonidasdeim/goconfig/pkg/utils"
 )
 
+const (
+	permissions            = 0664
+	appName                = "test_app"
+	activeConfig           = appName + ".%s"
+	defaultConfig          = appName + ".default.%s"
+	testDir                = "testDir/"
+	testSetupErrorMsg      = "Error while setting up test: %v"
+	expectedResultErrorMsg = "Expected config does not match the result"
+)
+
 type TestConfig struct {
 	Name      string `default:"app" env:"TEST_ENV_NAME"`
 	Version   int    `validate:"required"`
 	IsPrefork bool   `default:"true"`
 }
 
-var testData = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
-var testDataDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
-var testDataEnvName = TestConfig{Name: "env_name", Version: 123, IsPrefork: true}
-
-const permissions = 0664
-const appName = "test_app"
-const activeConfig = appName + ".%s"
-const defaultConfig = appName + ".default.%s"
-const testDir = "testDir/"
-
-const testSetupErrorMsg = "Error while setting up test: %v"
-const expectedResultErrorMsg = "Expected config does not match the result"
+var (
+	testData            = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
+	testDataDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
+	testDataEnvName     = TestConfig{Name: "env_name", Version: 123, IsPrefork: true}
+)
 
 type TestCaseForFileType struct {
 	Type                     fh.FileType
