@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/leonidasdeim/goconfig/internal/files"
 	"github.com/leonidasdeim/goconfig/pkg/filehandler/impl"
+	"github.com/leonidasdeim/goconfig/pkg/utils"
 )
 
 type FileType string
@@ -48,7 +48,7 @@ func resolveType(o *Optional) FileType {
 	}
 
 	for _, t := range availableImpl {
-		if files.Exists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
+		if utils.Exists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
 			return t
 		}
 	}

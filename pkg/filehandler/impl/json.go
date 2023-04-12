@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/leonidasdeim/goconfig/internal/files"
+	"github.com/leonidasdeim/goconfig/pkg/utils"
 )
 
 const (
@@ -27,7 +27,7 @@ func (j *Json) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal json: %v", err)
 	}
 
-	err = files.Write(file, json)
+	err = utils.Write(file, json)
 	if err != nil {
 		return fmt.Errorf("failed at write to json file: %v", err)
 	}

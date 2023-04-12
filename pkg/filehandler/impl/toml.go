@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/leonidasdeim/goconfig/internal/files"
+	"github.com/leonidasdeim/goconfig/pkg/utils"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -22,7 +22,7 @@ func (t *Toml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal toml: %v", err)
 	}
 
-	err = files.Write(file, toml)
+	err = utils.Write(file, toml)
 	if err != nil {
 		return fmt.Errorf("failed at write to toml file: %v", err)
 	}
