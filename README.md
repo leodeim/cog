@@ -36,10 +36,17 @@ Write config structure of your app. Example of config structure with different t
 
 ```go
 type ConfigType struct {
-    Name      string // simple field, will be empty string if not provided
-    Version   string `validate:"required"` // will fail if not provided
-    Address   string `validate:"required,ip" env:"SERVER_IP_ADDRESS"` // tries to load from env. variable "SERVER_IP_ADDRESS" if not provided in the config file
-    Prefork   bool `default:"false"` // sets default value "false" if field not provided in the config file
+    // simple field, will be empty string if not provided
+    Name      string 
+
+    // required: will fail if not provided
+    Version   string `validate:"required"` 
+    
+    // tries to load from env. variable "SERVER_IP_ADDRESS" if not provided in the config file
+    Address   string `validate:"required,ip" env:"SERVER_IP_ADDRESS"` 
+    
+    // sets default value "8080" if field not provided in the config file
+    Port      string   `default:"8080"` 
 }
 ```
 
