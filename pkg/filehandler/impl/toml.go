@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/leonidasdeim/goconfig/pkg/utils"
+	"github.com/leonidasdeim/cog/pkg/utils"
 	"github.com/pelletier/go-toml/v2"
 )
 

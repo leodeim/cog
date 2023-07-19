@@ -1,34 +1,34 @@
 <p align="center">
- <img src="assets/goconfig.png" width="450">
+ <img src="assets/cog.png" width="450">
 </p>
 
 <div align="center">
 
-  <a href="">![Tests](https://github.com/leonidasdeim/goconfig/actions/workflows/go.yml/badge.svg)</a>
-  <a href="">![Code Scanning](https://github.com/leonidasdeim/goconfig/actions/workflows/codeql.yml/badge.svg)</a>
-  <a href="">![Release](https://badgen.net/github/release/leonidasdeim/goconfig/)</a>
-  <a href="">![Releases](https://badgen.net/github/releases/leonidasdeim/goconfig)</a>
-  <a href="">![Contributors](https://badgen.net/github/contributors/leonidasdeim/goconfig)</a>
+  <a href="">![Tests](https://github.com/leonidasdeim/cog/actions/workflows/go.yml/badge.svg)</a>
+  <a href="">![Code Scanning](https://github.com/leonidasdeim/cog/actions/workflows/codeql.yml/badge.svg)</a>
+  <a href="">![Release](https://badgen.net/github/release/leonidasdeim/cog/)</a>
+  <a href="">![Releases](https://badgen.net/github/releases/leonidasdeim/cog)</a>
+  <a href="">![Contributors](https://badgen.net/github/contributors/leonidasdeim/cog)</a>
   
 </div>
 
-# goconfig
+# cog
 
 Config tool for Go applications that require configuration changes on-the-fly.
 
 ```bash
-go get github.com/leonidasdeim/goconfig
+go get github.com/leonidasdeim/cog
 ```
 
 ## Overview
 
-Currently **goconfig** supports **JSON**, **YAML** and **TOML** configuration files with built-in `pkg/handler/filehandler.go`. By default it dynamically detects configuration file type. If you want to specify file type, [here](#file-handler-type) you can find how to use built-in file handlers. You can always write your own handler which would implement `ConfigHandler` interface.
+Currently **cog** supports **JSON**, **YAML** and **TOML** configuration files with built-in `pkg/handler/filehandler.go`. By default it dynamically detects configuration file type. If you want to specify file type, [here](#file-handler-type) you can find how to use built-in file handlers. You can always write your own handler which would implement `ConfigHandler` interface.
 
-Default config with initial configuration information should be placed in root folder named `<name>.default.<type>`. Name and type of the file could be changed using [custom parameters](#custom-parameters). **Goconfig** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only *bool*, *int* and *string* is supported.
+Default config with initial configuration information should be placed in root folder named `<name>.default.<type>`. Name and type of the file could be changed using [custom parameters](#custom-parameters). **cog** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only *bool*, *int* and *string* is supported.
 
-It is possible to load config fields values from **environment variables** using `env:"ENV_VAR_NAME"` tag. With this tag **goconfig** will take env. variable value and use it if field value not provided in the config file.
+It is possible to load config fields values from **environment variables** using `env:"ENV_VAR_NAME"` tag. With this tag **cog** will take env. variable value and use it if field value not provided in the config file.
 
-**Goconfig** uses [validator](https://github.com/go-playground/validator) library for validating loaded configuration. For example you can specify required configuration items with `validate:"required"` tag.
+**cog** uses [validator](https://github.com/go-playground/validator) library for validating loaded configuration. For example you can specify required configuration items with `validate:"required"` tag.
 
 ## Getting started
 
@@ -53,14 +53,14 @@ type ConfigType struct {
 Import main library:
 
 ```go
-import "github.com/leonidasdeim/goconfig"
+import "github.com/leonidasdeim/cog"
 ```
 
 Initialize and use config:
 
 ```go
-// creates default goconfig instance with JSON file handler
-c, _ := goconfig.Init[ConfigType]()
+// creates default cog instance with JSON file handler
+c, _ := cog.Init[ConfigType]()
 
 // access current configuration attributes
 cfg := c.GetCfg()
@@ -122,19 +122,19 @@ c.RemoveSubscriber("name_of_subscriber")
 
 ## File handler type
 
-By default **goconfig** initializes with dynamic file handler. You can specify type (JSON, YAML or TOML) by creating handler instance and providing it during initialization.
+By default **cog** initializes with dynamic file handler. You can specify type (JSON, YAML or TOML) by creating handler instance and providing it during initialization.
 
 Import built-in filehandler
 ```go
 import (
-	"github.com/leonidasdeim/goconfig"
-	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
+	"github.com/leonidasdeim/cog"
+	fh "github.com/leonidasdeim/cog/pkg/filehandler"
 )
 ```
 
 ```go
 h, _ := fh.New(fh.WithType(fh.YAML))
-c, _ := goconfig.Init[ConfigType](h)
+c, _ := cog.Init[ConfigType](h)
 ```
 
 ## Custom parameters
@@ -144,5 +144,5 @@ You can specify custom path, name and file handler.
 
 ```go
 h, _ := fh.New(fh.WithPath("./dir"), fh.WithName("name"), fh.WithType(fh.JSON))
-c, _ := goconfig.Init[ConfigType](h)
+c, _ := cog.Init[ConfigType](h)
 ```

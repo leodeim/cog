@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/leonidasdeim/goconfig"
+	"github.com/leonidasdeim/cog"
 )
 
 type Config struct {
@@ -12,9 +12,9 @@ type Config struct {
 }
 
 func main() {
-	c, err := goconfig.Init[Config]()
+	c, err := cog.Init[Config]()
 	if err != nil {
-		fmt.Printf("Error at initialize goconfig: %v", err)
+		fmt.Printf("Error at initialize cog: %v", err)
 		return
 	}
 

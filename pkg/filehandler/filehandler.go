@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/leonidasdeim/goconfig/pkg/utils"
+	"github.com/leonidasdeim/cog/pkg/utils"
 )
 
 const (

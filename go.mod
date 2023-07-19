@@ -1,4 +1,4 @@
-module github.com/leonidasdeim/goconfig
+module github.com/leonidasdeim/cog
 
 go 1.18
 

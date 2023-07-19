@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/leonidasdeim/goconfig/pkg/utils"
+	"github.com/leonidasdeim/cog/pkg/utils"
 )
 
 const (

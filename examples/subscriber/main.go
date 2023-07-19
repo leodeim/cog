@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/leonidasdeim/goconfig"
+	"github.com/leonidasdeim/cog"
 )
 
 type Config struct {
@@ -13,9 +13,9 @@ type Config struct {
 }
 
 func main() {
-	c, err := goconfig.Init[Config]()
+	c, err := cog.Init[Config]()
 	if err != nil {
-		fmt.Printf("Error at initialize goconfig: %v", err)
+		fmt.Printf("Error at initialize cog: %v", err)
 		return
 	}
 
@@ -28,7 +28,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 }
 
-func updateConfig(c *goconfig.Config[Config], ip string, port string) {
+func updateConfig(c *cog.Config[Config], ip string, port string) {
 	config := c.GetCfg()
 
 	config.Ip = ip
@@ -41,10 +41,10 @@ func updateConfig(c *goconfig.Config[Config], ip string, port string) {
 // Service who uses config and acts as subscriber
 
 type Service struct {
-	config *goconfig.Config[Config]
+	config *cog.Config[Config]
 }
 
-func InitService(c *goconfig.Config[Config]) *Service {
+func InitService(c *cog.Config[Config]) *Service {
 	s := &Service{
 		config: c,
 	}
