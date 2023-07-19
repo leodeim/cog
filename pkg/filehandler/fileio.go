@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/leonidasdeim/goconfig/pkg/filehandler/impl"
-	"github.com/leonidasdeim/goconfig/pkg/utils"
+	"github.com/leonidasdeim/cog/pkg/filehandler/impl"
+	"github.com/leonidasdeim/cog/pkg/utils"
 )
 
 type FileType string

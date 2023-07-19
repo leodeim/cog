@@ -1,4 +1,4 @@
-package goconfig
+package cog
 
 import (
 	"errors"
@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
-	"github.com/leonidasdeim/goconfig/pkg/utils"
+	fh "github.com/leonidasdeim/cog/pkg/filehandler"
+	"github.com/leonidasdeim/cog/pkg/utils"
 )
 
 const (

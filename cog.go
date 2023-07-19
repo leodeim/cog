@@ -1,4 +1,4 @@
-package goconfig
+package cog
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/leonidasdeim/goconfig/pkg/defaults"
-	fh "github.com/leonidasdeim/goconfig/pkg/filehandler"
+	"github.com/leonidasdeim/cog/pkg/defaults"
+	fh "github.com/leonidasdeim/cog/pkg/filehandler"
 )
 
 type Callback[T any] func(T)
@@ -29,10 +29,10 @@ type ConfigHandler interface {
 	Save(data any) error
 }
 
-// Initialize library. Returns goconfig instance.
+// Initialize library. Returns cog instance.
 // Receives config handler.
 // To use default builtin JSON file handler:
-// c, err := goconfig.Init[ConfigStruct](handler.New())
+// c, err := cog.Init[ConfigStruct](handler.New())
 func Init[T any](handler ...ConfigHandler) (*Config[T], error) {
 	c := Config[T]{
 		subscribers: make(map[string]chan bool),
