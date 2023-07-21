@@ -10,11 +10,11 @@ import (
 type getValue func(reflect.StructField) string
 
 var tagHandlers = []getValue{
-	environmentValue("env"),
+	environmentVariable("env"),
 	defaultValue("default"),
 }
 
-func environmentValue(tag string) getValue {
+func environmentVariable(tag string) getValue {
 	return func(sf reflect.StructField) string {
 		if env := sf.Tag.Get(tag); env != "" {
 			return os.Getenv(env)

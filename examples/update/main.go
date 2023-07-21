@@ -18,17 +18,17 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Default IP: %s \n", c.GetCfg().Ip)
-	fmt.Printf("Default Port: %s \n", c.GetCfg().Port)
+	fmt.Printf("Default IP: %s \n", c.Config().Ip)
+	fmt.Printf("Default Port: %s \n", c.Config().Port)
 
 	UpdateConfig(c)
 
-	fmt.Printf("Updated IP: %s \n", c.GetCfg().Ip)
-	fmt.Printf("Updated Port: %s \n", c.GetCfg().Port)
+	fmt.Printf("Updated IP: %s \n", c.Config().Ip)
+	fmt.Printf("Updated Port: %s \n", c.Config().Port)
 }
 
-func UpdateConfig(c *cog.Config[Config]) {
-	config := c.GetCfg()
+func UpdateConfig(c *cog.C[Config]) {
+	config := c.Config()
 
 	config.Ip = "192.168.1.1"
 	config.Port = "8081"

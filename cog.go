@@ -11,198 +11,202 @@ import (
 	fh "github.com/leonidasdeim/cog/pkg/filehandler"
 )
 
+type Subscriber[T any] func(T) error
 type Callback[T any] func(T)
-type Bound[T any] func(T) error
 
-type Config[T any] struct {
-	mutex       sync.Mutex
-	data        T
+type C[T any] struct {
+	sync.Mutex
+	config      T
 	timestamp   string
-	subscribers map[string](chan bool)
-	callbacks   []Callback[T]
-	bounds      []Bound[T]
 	handler     ConfigHandler
+	subscribers map[int](Subscriber[T])
+	callbacks   map[int](Callback[T])
 }
 
 type ConfigHandler interface {
-	Load(data any) error
-	Save(data any) error
+	Load(any) error
+	Save(any) error
 }
 
 // Initialize library. Returns cog instance.
 // Receives config handler.
 // To use default builtin JSON file handler:
 // c, err := cog.Init[ConfigStruct](handler.New())
-func Init[T any](handler ...ConfigHandler) (*Config[T], error) {
-	c := Config[T]{
-		subscribers: make(map[string]chan bool),
+func Init[T any](handler ...ConfigHandler) (*C[T], error) {
+	cog := C[T]{
+		callbacks:   make(map[int]Callback[T]),
+		subscribers: make(map[int]Subscriber[T]),
 	}
 
 	if len(handler) > 0 {
-		c.handler = handler[0]
+		cog.handler = handler[0]
 	} else {
-		c.handler, _ = fh.New() // default DYNAMIC file handler
+		cog.handler, _ = fh.New() // default DYNAMIC file handler
 	}
 
-	c.load()
+	cog.load()
 
-	if err := c.defaults(); err != nil {
+	if err := cog.defaults(); err != nil {
 		return nil, err
 	}
 
-	if err := validate(c.GetCfg()); err != nil {
+	if err := validate(cog.Config()); err != nil {
 		return nil, err
 	}
 
-	if err := c.save(); err != nil {
+	if err := cog.save(); err != nil {
 		return nil, err
 	}
 
-	return &c, nil
+	return &cog, nil
 }
 
 // Update configuration data. After update subscribers will be notified.
-func (c *Config[T]) Update(new T) error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (cog *C[T]) Update(new T) error {
+	cog.Lock()
+	defer cog.Unlock()
 
 	if err := validate(new); err != nil {
 		return err
 	}
 
-	if err := c.bound(new); err != nil {
+	if err := cog.notify(new); err != nil {
 		return err
 	}
 
-	c.data = new
+	cog.config = new
 
-	if err := c.save(); err != nil {
+	if err := cog.save(); err != nil {
 		return err
 	}
-
-	c.notify()
 
 	return nil
 }
 
-// Get subscriber read only channel by key.
-// Returns an error if subscriber key does not exist.
-func (c *Config[T]) GetSubscriber(key string) (<-chan bool, error) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+// Register new callback function. It will be called after config update in non blocking goroutine.
+// This method returns callback id (int). It can be used to remove callback by calling cog.RemoveCallback(id).
+func (cog *C[T]) AddCallback(f Callback[T]) int {
+	cog.Lock()
+	defer cog.Unlock()
 
-	if ch, ok := c.subscribers[key]; ok {
-		return ch, nil
+	l := len(cog.callbacks) + 1
+	cog.callbacks[l] = f
+
+	return l
+}
+
+// Remove callback by id.
+func (cog *C[T]) RemoveCallback(id int) error {
+	cog.Lock()
+	defer cog.Unlock()
+
+	if _, ok := cog.callbacks[id]; ok {
+		delete(cog.callbacks, id)
+		return nil
 	}
-	return nil, fmt.Errorf("subscriber is not registered: %s", key)
+
+	return fmt.Errorf("callback with id=%d not found", id)
 }
 
-// Register new subscriber.
-func (c *Config[T]) AddSubscriber(key string) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+// Register new subscriber function. It will be called after config update and wait for every subscriber to be updated.
+// If at least one subscriber returns an error, update stops and rollback is initiated for all updated subscribers.
+// This method returns subscriber id (int). It can be used to remove subscriber by calling cog.RemoveSubscriber(id).
+func (cog *C[T]) AddSubscriber(f Subscriber[T]) int {
+	cog.Lock()
+	defer cog.Unlock()
 
-	c.subscribers[key] = make(chan bool, 1)
+	l := len(cog.subscribers) + 1
+	cog.subscribers[l] = f
+
+	return l
 }
 
-// Register new callback function. It will be called after config update.
-func (c *Config[T]) AddCallback(f Callback[T]) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+// Remove subscriber by id.
+func (cog *C[T]) RemoveSubscriber(id int) error {
+	cog.Lock()
+	defer cog.Unlock()
 
-	c.callbacks = append(c.callbacks, f)
-}
+	if _, ok := cog.subscribers[id]; ok {
+		delete(cog.subscribers, id)
+		return nil
+	}
 
-// Register new bound callback function. It will be called after config update.
-// If bound callback returns error, config update is aborted and old config is restored.
-// Bound callbacks will be blocking functions.
-func (c *Config[T]) AddBound(f Bound[T]) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	c.bounds = append(c.bounds, f)
-}
-
-// Remove subscriber by key.
-func (c *Config[T]) RemoveSubscriber(key string) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	delete(c.subscribers, key)
+	return fmt.Errorf("subscriber with id=%d not found", id)
 }
 
 // Get timestamp of the configuration. It reflects when configuration has been updated or loaded last time.
-func (c *Config[T]) GetTimestamp() string {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (cog *C[T]) GetTimestamp() string {
+	cog.Lock()
+	defer cog.Unlock()
 
-	return c.timestamp
+	return cog.timestamp
 }
 
 // Get configuration data.
-func (c *Config[T]) GetCfg() T {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
+func (cog *C[T]) Config() T {
+	cog.Lock()
+	defer cog.Unlock()
 
-	return c.data
+	return cog.config
 }
 
-func (c *Config[T]) load() {
-	if err := c.handler.Load(&c.data); err != nil {
-		c.data = *new(T)
+func (cog *C[T]) load() {
+	if err := cog.handler.Load(&cog.config); err != nil {
+		cog.config = *new(T)
 	}
 }
 
-func (c *Config[T]) save() error {
-	c.updateTimestamp()
+func (cog *C[T]) save() error {
+	cog.updateTimestamp()
 
-	if err := c.handler.Save(c.data); err != nil {
+	if err := cog.handler.Save(cog.config); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Config[T]) notify() {
-	for _, ch := range c.subscribers {
-		select {
-		case ch <- true:
-		default:
+func (cog *C[T]) notify(config T) error {
+	updated := []Subscriber[T]{}
+
+	for _, f := range cog.subscribers {
+		if f == nil {
+			continue
 		}
-	}
-
-	for _, cb := range c.callbacks {
-		go cb(c.data)
-	}
-}
-
-func (c *Config[T]) bound(new T) error {
-	used := []Bound[T]{}
-
-	for _, f := range c.bounds {
-		if err := f(new); err != nil {
-			c.rollback(used)
-			return fmt.Errorf("bound callback returned an error: %v", err)
+		if err := f(config); err != nil {
+			cog.rollback(updated)
+			return fmt.Errorf("bound returned an error on update: %v", err)
 		}
-		used = append(used, f)
+		updated = append(updated, f)
 	}
+
+	for _, f := range cog.callbacks {
+		if f == nil {
+			continue
+		}
+		go f(config)
+	}
+
 	return nil
 }
 
-func (c *Config[T]) rollback(bounds []Bound[T]) {
-	for _, f := range bounds {
-		f(c.data)
+func (cog *C[T]) rollback(subscribers []Subscriber[T]) {
+	for _, f := range subscribers {
+		if f == nil {
+			continue
+		}
+		f(cog.config)
 	}
 }
 
-func (c *Config[T]) defaults() error {
-	if err := defaults.Set(&c.data); err != nil {
+func (cog *C[T]) defaults() error {
+	if err := defaults.Set(&cog.config); err != nil {
 		return fmt.Errorf("failed to set env/default values: %v", err)
 	}
 	return nil
 }
 
-func (c *Config[T]) updateTimestamp() {
-	c.timestamp = strconv.FormatInt(time.Now().Unix(), 10)
+func (cog *C[T]) updateTimestamp() {
+	cog.timestamp = strconv.FormatInt(time.Now().Unix(), 10)
 }
 
 func validate[T any](data T) error {
