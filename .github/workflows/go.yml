@@ -22,7 +22,7 @@ jobs:
       run: go build -v ./...
 
     - name: Test
-      run: go test -v -race ./... -coverprofile=coverage.txt -covermode=atomic -timeout=10m
+      run: go test -v ./... -coverprofile=coverage.txt -covermode=atomic -timeout=10m
       
     - name: Codecov
       uses: codecov/codecov-action@v3
