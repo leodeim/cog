@@ -174,7 +174,7 @@ func (cog *C[T]) notify(config T) error {
 		}
 		if err := f(config); err != nil {
 			cog.rollback(updated)
-			return fmt.Errorf("bound returned an error on update: %v", err)
+			return fmt.Errorf("subscriber returned an error on update: %v", err)
 		}
 		updated = append(updated, f)
 	}
