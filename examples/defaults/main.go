@@ -20,6 +20,6 @@ func main() {
 
 	fmt.Println("There is no initial configuration file.")
 	fmt.Println("Initialized config has default values provided with tags:")
-	fmt.Printf("Default IP: %s \n", c.GetCfg().Ip)
-	fmt.Printf("Default Port: %s \n", c.GetCfg().Port)
+	fmt.Printf("Default IP: %s \n", c.Config().Ip)
+	fmt.Printf("Default Port: %s \n", c.Config().Port)
 }

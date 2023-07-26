@@ -1,4 +1,4 @@
-package defaults
+package cog
 
 import (
 	"fmt"
@@ -10,11 +10,15 @@ import (
 type getValue func(reflect.StructField) string
 
 var tagHandlers = []getValue{
-	environmentValue("env"),
+	environmentVariable("env"),
 	defaultValue("default"),
 }
 
-func environmentValue(tag string) getValue {
+func SetDefaults[T any](data *T) error {
+	return setNested(reflect.ValueOf(data).Elem())
+}
+
+func environmentVariable(tag string) getValue {
 	return func(sf reflect.StructField) string {
 		if env := sf.Tag.Get(tag); env != "" {
 			return os.Getenv(env)
@@ -32,10 +36,6 @@ func defaultValue(tag string) getValue {
 
 		return ""
 	}
-}
-
-func Set[T any](data *T) error {
-	return setNested(reflect.ValueOf(data).Elem())
 }
 
 func setNested(v reflect.Value) error {

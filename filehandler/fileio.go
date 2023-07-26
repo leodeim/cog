@@ -3,9 +3,6 @@ package filehandler
 import (
 	"fmt"
 	"path/filepath"
-
-	"github.com/leonidasdeim/cog/pkg/filehandler/impl"
-	"github.com/leonidasdeim/cog/pkg/utils"
 )
 
 type FileType string
@@ -32,11 +29,11 @@ type FileIO interface {
 func BuildFileIO(o *Optional) FileIO {
 	switch resolveType(o) {
 	case JSON:
-		return &impl.Json{}
+		return &Json{}
 	case YAML:
-		return &impl.Yaml{}
+		return &Yaml{}
 	case TOML:
-		return &impl.Toml{}
+		return &Toml{}
 	default:
 		return nil
 	}
@@ -48,7 +45,7 @@ func resolveType(o *Optional) FileType {
 	}
 
 	for _, t := range availableImpl {
-		if utils.Exists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
+		if Utils.FileExists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
 			return t
 		}
 	}

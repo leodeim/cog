@@ -1,12 +1,10 @@
-package impl
+package filehandler
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
-
-	"github.com/leonidasdeim/cog/pkg/utils"
 )
 
 const (
@@ -27,7 +25,7 @@ func (j *Json) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal json: %v", err)
 	}
 
-	err = utils.Write(file, json)
+	err = Utils.WriteFile(file, json)
 	if err != nil {
 		return fmt.Errorf("failed at write to json file: %v", err)
 	}

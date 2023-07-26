@@ -22,7 +22,7 @@ go get github.com/leonidasdeim/cog
 
 ## Overview
 
-Currently **cog** supports **JSON**, **YAML** and **TOML** configuration files with built-in `pkg/handler/filehandler.go`. By default it dynamically detects configuration file type. If you want to specify file type, [here](#file-handler-type) you can find how to use built-in file handlers. You can always write your own handler which would implement `ConfigHandler` interface.
+Currently **cog** supports **JSON**, **YAML** and **TOML** configuration files with built-in `handler/filehandler.go`. By default it dynamically detects configuration file type. If you want to specify file type, [here](#file-handler-type) you can find how to use built-in file handlers. You can always write your own handler which would implement `ConfigHandler` interface.
 
 Default config with initial configuration information should be placed in root folder named `<name>.default.<type>`. Name and type of the file could be changed using [custom parameters](#custom-parameters). **cog** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only *bool*, *int* and *string* is supported.
 
@@ -35,7 +35,7 @@ It is possible to load config fields values from **environment variables** using
 Write config structure of your app. Example of config structure with different tags:
 
 ```go
-type ConfigType struct {
+type Config struct {
     // simple field, will be empty string if not provided
     Name      string 
 
@@ -46,7 +46,7 @@ type ConfigType struct {
     Address   string `validate:"required,ip" env:"SERVER_IP_ADDRESS"` 
     
     // sets default value "8080" if field not provided in the config file
-    Port      string   `default:"8080"` 
+    Port      string `default:"8080"` 
 }
 ```
 
@@ -60,13 +60,13 @@ Initialize and use config:
 
 ```go
 // creates default cog instance with JSON file handler
-c, _ := cog.Init[ConfigType]()
+c, err := cog.Init[Config]()
 
 // access current configuration attributes
-cfg := c.GetCfg()
+config := c.Config()
 
-// make some changes to 'cfg' and update current configuration
-c.UpdateConfig(cfg)
+// make some changes to 'config' and update current configuration
+c.UpdateConfig(newConfig)
 ```
 
 For more examples check out `examples/` folder.
@@ -75,20 +75,20 @@ For more examples check out `examples/` folder.
 
 ### Callback
 
-Register a callback function, which will be called on config change:
+Register a callback function, which will be called on config change in non blocking way:
 ```go
 c.AddCallback(func(cfg ConfigType) {
     // handle config update
 })
 ```
 
-### Bound
+### Subscribers
 
-You can register another type of callback - **bound**. It will be called on config change just like regular callback, but it have different signature: it can return an error.
-In case bound callback returns an error - whole config update is being rolled back.
+You can register another type of callback - **subscriber**. It will be called on config change and will wait for it to complete.
+It has different signature than callback: it can return an error and in case subscriber callback returns an error - whole config update is being rolled back.
 Example:
 ```go
-c.AddBound(func(cfg ConfigType) error {
+c.AddSubscriber(func(cfg ConfigType) error {
     if err := tryConfigUpdate(cfg); err != nil {
         return err
     }
@@ -96,31 +96,7 @@ c.AddBound(func(cfg ConfigType) error {
 })
 ```
 
-### Subscription
-
-One more option to be notified on config change is through channels.
-To add a listener/subscriber:
-
-```go
-c.AddSubscriber("name_of_subscriber")
-```
-
-Implement waiting goroutine for config change on the fly in your modules:
-
-```go
-for {
-    <-c.GetSubscriber("name_of_subscriber")
-    reconfigureModule()
-}
-```
-
-You can remove subscriber by given name on the fly as well:
-
-```go
-c.RemoveSubscriber("name_of_subscriber")
-```
-
-## File handler type
+## File handler
 
 By default **cog** initializes with dynamic file handler. You can specify type (JSON, YAML or TOML) by creating handler instance and providing it during initialization.
 
@@ -128,7 +104,7 @@ Import built-in filehandler
 ```go
 import (
 	"github.com/leonidasdeim/cog"
-	fh "github.com/leonidasdeim/cog/pkg/filehandler"
+	fh "github.com/leonidasdeim/cog/filehandler"
 )
 ```
 
@@ -137,12 +113,16 @@ h, _ := fh.New(fh.WithType(fh.YAML))
 c, _ := cog.Init[ConfigType](h)
 ```
 
-## Custom parameters
+### Custom parameters
 
 Handlers also support optional parameters with high order functions.
 You can specify custom path, name and file handler.
 
 ```go
-h, _ := fh.New(fh.WithPath("./dir"), fh.WithName("name"), fh.WithType(fh.JSON))
+h, _ := fh.New(
+    fh.WithPath("./dir"), 
+    fh.WithName("name"), 
+    fh.WithType(fh.JSON),
+)
 c, _ := cog.Init[ConfigType](h)
 ```

@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
-	"strings"
 	"testing"
 	"time"
 
-	fh "github.com/leonidasdeim/cog/pkg/filehandler"
-	"github.com/leonidasdeim/cog/pkg/utils"
+	fh "github.com/leonidasdeim/cog/filehandler"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
@@ -20,30 +20,30 @@ const (
 	activeConfig           = appName + ".%s"
 	defaultConfig          = appName + ".default.%s"
 	testDir                = "testDir/"
-	testSetupErrorMsg      = "Error while setting up test: %v"
-	expectedResultErrorMsg = "Expected config does not match the result"
+	testSetupErrorMsg      = "error while setting up test: %v"
+	expectedResultErrorMsg = "expected config does not match the result"
 )
 
-type TestConfig struct {
+type testConfig struct {
 	Name      string `default:"app" env:"TEST_ENV_NAME"`
 	Version   int    `validate:"required"`
 	IsPrefork bool   `default:"true"`
 }
 
 var (
-	testData            = TestConfig{Name: "config_test", Version: 123, IsPrefork: true}
-	testDataDefaultName = TestConfig{Name: "app", Version: 123, IsPrefork: true}
-	testDataEnvName     = TestConfig{Name: "env_name", Version: 123, IsPrefork: true}
+	testData            = testConfig{Name: "config_test", Version: 123, IsPrefork: true}
+	testDataDefaultName = testConfig{Name: "app", Version: 123, IsPrefork: true}
+	testDataEnvName     = testConfig{Name: "env_name", Version: 123, IsPrefork: true}
 )
 
-type TestCaseForFileType struct {
+type testCase struct {
 	Type                     fh.FileType
 	TestString               string
 	TestStringWithoutVersion string
 	TestStringWithDefaults   string
 }
 
-var testCases = []TestCaseForFileType{
+var testCases = []testCase{
 	{
 		fh.JSON,
 		"{\"name\":\"config_test\",\"version\":123}",
@@ -64,45 +64,18 @@ var testCases = []TestCaseForFileType{
 	},
 }
 
-func Test_AllCases(t *testing.T) {
+type cogTestSuite struct {
+	suite.Suite
+	tc testCase
+}
+
+func TestFileTypes(t *testing.T) {
 	for _, tc := range testCases {
-		InitTests(t, tc)
-		UpdateTests(t, tc)
+		suite.Run(t, &cogTestSuite{tc: tc})
 	}
 }
 
-func setup(fn string, path string, ft fh.FileType, data string, subs []string) (*Config[TestConfig], error) {
-	if path != "" {
-		err := os.Mkdir(path, os.ModePerm)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	f := filepath.Join(path, fn)
-	err := os.WriteFile(f, []byte(data), permissions)
-	if err != nil {
-		return nil, err
-	}
-
-	h, err := fh.New(fh.WithName(appName), fh.WithPath(path), fh.WithType(ft))
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := Init[TestConfig](h)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, s := range subs {
-		c.AddSubscriber(s)
-	}
-
-	return c, nil
-}
-
-func cleanup() {
+func (s *cogTestSuite) TearDownTest() {
 	for _, tc := range testCases {
 		os.Remove(fmt.Sprintf(activeConfig, tc.Type))
 		os.Remove(fmt.Sprintf(defaultConfig, tc.Type))
@@ -111,540 +84,341 @@ func cleanup() {
 	os.Setenv("TEST_ENV_NAME", "")
 }
 
-func InitTests(t *testing.T, tc TestCaseForFileType) {
-	t.Run("Check loaded config data "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		want := testData
-		got := c.GetCfg()
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
-
-	t.Run("Check if file data overwrites env variable "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-		os.Setenv("TEST_ENV_NAME", "env_name")
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		want := testData
-		got := c.GetCfg()
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
-
-	t.Run("Check default handler "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		type Connection struct {
-			Host string `json:"host" default:"localhost"`
-			Port string `json:"port" default:"123"`
-		}
-
-		type ConfigNoRequiredFields struct {
-			Name      string `default:"app"`
-			Version   int
-			Store     Connection
-			IsPrefork bool `default:"true"`
-		}
-
-		_, err := Init[ConfigNoRequiredFields]()
-		if err != nil {
-			t.Errorf("Error while initializing library: %v", err)
-			t.FailNow()
-		}
-
-		if !utils.Exists("app.json") {
-			t.Error("Expected active config file to be created, but it does not exist")
-		}
-
-		os.Remove("app.json")
-	})
-
-	t.Run("Check loaded config data from active config "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		c, err := setup(fmt.Sprintf(activeConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		want := testData
-		got := c.GetCfg()
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
-
-	t.Run("Create active config file "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		if !utils.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
-			t.Error("Expected active config file to be created, but it does not exist")
-		}
-	})
-
-	t.Run("Check active config file content "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		fileContent := TestConfig{}
-
-		if err = c.handler.Load(&fileContent); err != nil {
-			t.Error("Parsing activeConfig file", err.Error())
-		}
-
-		want := testData
-		got := fileContent
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
-
-	t.Run("Check timestamp is created "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		if c.GetTimestamp() == "" {
-			t.Error("Timestamp is not set")
-		}
-	})
-
-	t.Run("Check subscribers being created "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		subscribers := [5]string{"test1", "test2", "test3", "test4", "test5"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		if len(c.subscribers) != len(subscribers) {
-			t.Error("Expected number of subscribers is not correct")
-		}
-	})
-
-	t.Run("Check subscribers not being notified "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		subscribers := [5]string{"test1"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
-		if err != nil {
-			t.Error("Error while setting up test")
-			t.FailNow()
-		}
-
-		ch, _ := c.GetSubscriber("test1")
-		if len(ch) != 0 {
-			t.Error("Subscribers has been notified")
-		}
-	})
-
-	t.Run("Custom config path "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), testDir, tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		defaultConfigPth := filepath.Join(testDir, fmt.Sprintf(defaultConfig, string(tc.Type)))
-		if _, err := os.Stat(defaultConfigPth); err != nil {
-			t.Error("Cannot find default config in expected location")
-			t.FailNow()
-		}
-
-		activeConfigPth := filepath.Join(testDir, fmt.Sprintf(activeConfig, string(tc.Type)))
-		if _, err := os.Stat(activeConfigPth); err != nil {
-			t.Error("Cannot find active config in expected location")
-			t.FailNow()
-		}
-
-		want := testData
-		got := c.GetCfg()
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-			t.FailNow()
-		}
-	})
-
-	t.Run("Check required fields validation "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		_, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithoutVersion, []string{})
-		if err == nil {
-			t.Errorf("Error is not returned")
-			t.FailNow()
-		}
-		if !strings.Contains(err.Error(), "failed at validate config") {
-			t.Errorf("Validation error is not returned")
-		}
-	})
-
-	t.Run("Check if default values are set "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{})
-		if err != nil {
-			t.Errorf("Failed to set default values")
-			t.FailNow()
-		}
-
-		want := testDataDefaultName
-		got := c.GetCfg()
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
-
-	t.Run("Check if environment values are set "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-		os.Setenv("TEST_ENV_NAME", "env_name")
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestStringWithDefaults, []string{})
-		if err != nil {
-			t.Errorf("Failed to set default values")
-			t.FailNow()
-		}
-
-		want := testDataEnvName
-		got := c.GetCfg()
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
-
-	t.Run("Check if dynamic type is resolved correctly "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", fh.DYNAMIC, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		want := testData
-		got := c.GetCfg()
-
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-
-		if !utils.Exists(fmt.Sprintf(activeConfig, string(tc.Type))) {
-			t.Error("Expected active config file to be created with correct filetype")
-		}
-	})
-
-	t.Run("Check callbacks being registered "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		callbacks := [2]Callback[TestConfig]{
-			func(tc TestConfig) {
-				// empty
-			},
-			func(tc TestConfig) {
-				// empty
-			},
-		}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		for _, cb := range callbacks {
-			c.AddCallback(cb)
-		}
-
-		if len(c.callbacks) != len(callbacks) {
-			t.Error("Expected number of callbacks is not correct")
-		}
-	})
-
-	t.Run("Check bound callbacks being registered "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
-
-		callbacks := [3]Bound[TestConfig]{
-			func(tc TestConfig) error {
-				return nil
-			},
-			func(tc TestConfig) error {
-				return nil
-			},
-			func(tc TestConfig) error {
-				return nil
-			},
-		}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
-
-		for _, cb := range callbacks {
-			c.AddBound(cb)
-		}
-
-		if len(c.bounds) != len(callbacks) {
-			t.Error("Expected number of bound callbacks is not correct")
-		}
-	})
+func (s *cogTestSuite) TestConfigLoading() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	got := c.Config()
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
 }
 
-func UpdateTests(t *testing.T, tc TestCaseForFileType) {
-	newData := TestConfig{Name: "new_data", Version: 456}
-	newDataWithoutRequired := TestConfig{Name: "new_data"}
+func (s *cogTestSuite) TestEnvironmentVarIsOverwritten() {
+	os.Setenv("TEST_ENV_NAME", "env_name")
 
-	t.Run("Check if config is updated "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
+	got := c.Config()
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
+}
+
+func (s *cogTestSuite) TestConfigDefaults() {
+	type ConfigNoRequiredFields struct {
+		Name    string `default:"app"`
+		Version int
+		Store   struct {
+			Host string `default:"localhost"`
+			Port string `default:"123"`
 		}
+		IsPrefork bool `default:"true"`
+	}
 
-		err = c.Update(newData)
-		if err != nil {
-			t.Errorf("Error while updating config: %v", err)
-			t.FailNow()
-		}
+	c, err := Init[ConfigNoRequiredFields]()
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		want := newData
-		got := c.GetCfg()
+	assert.FileExistsf(s.T(), "app.json", "active config file is not created")
+	assert.Equalf(s.T(), "app", c.Config().Name, "default name is not set")
+	assert.Equalf(s.T(), true, c.Config().IsPrefork, "default isPrefork is not set")
+	assert.Equalf(s.T(), "localhost", c.Config().Store.Host, "default host is not set")
+	assert.Equalf(s.T(), "123", c.Config().Store.Port, "default port is not set")
 
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
+	os.Remove("app.json")
+}
 
-	t.Run("Check if subscribers are being notified "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+func (s *cogTestSuite) TestLoadFromActiveConfig() {
+	c, err := setup(s.T(), fmt.Sprintf(activeConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		subscribers := [5]string{"test1", "test2", "test3"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
+	got := c.Config()
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
+}
 
-		c.Update(newData)
+func (s *cogTestSuite) TestActiveConfigCreated() {
+	_, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		if len(c.subscribers["test1"]) != 1 || len(c.subscribers["test2"]) != 1 || len(c.subscribers["test3"]) != 1 {
-			t.Error("Subscribers not being notified")
-		}
-	})
+	assert.FileExistsf(s.T(), fmt.Sprintf(activeConfig, string(s.tc.Type)), "active config file is not created")
+}
 
-	t.Run("Check callbacks are being notified "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+func (s *cogTestSuite) TestActiveConfigContent() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		cb1 := 0
-		cb2 := 0
-		callbacks := [2]Callback[TestConfig]{
-			func(tc TestConfig) {
-				cb1++
-			},
-			func(tc TestConfig) {
-				cb2++
-			},
-		}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
+	got := testConfig{}
+	err = c.handler.Load(&got)
+	assert.NoErrorf(s.T(), err, "error while parsing active config file")
 
-		for _, cb := range callbacks {
-			c.AddCallback(cb)
-		}
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
+}
 
-		c.Update(newData)
-		c.Update(newData)
-		c.Update(newData)
+func (s *cogTestSuite) TestTimestampIsCreated() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		time.Sleep(100 * time.Millisecond)
+	assert.NotEmptyf(s.T(), c.GetTimestamp(), "timestamp is not set")
+}
 
-		if cb1 != 3 || cb2 != 3 {
-			t.Error("Callbacks are not being called")
-		}
-	})
+func (s *cogTestSuite) TestCustomConfigPath() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), testDir, s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-	t.Run("Check bound callbacks are being notified "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+	defaultConfigPath := filepath.Join(testDir, fmt.Sprintf(defaultConfig, string(s.tc.Type)))
+	assert.FileExists(s.T(), defaultConfigPath, "cannot find default config in expected location")
 
-		cb1 := 0
-		cb2 := 0
-		callbacks := [2]Bound[TestConfig]{
-			func(tc TestConfig) error {
-				cb1++
-				return nil
-			},
-			func(tc TestConfig) error {
-				cb2++
-				return nil
-			},
-		}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
+	activeConfigPth := filepath.Join(testDir, fmt.Sprintf(activeConfig, string(s.tc.Type)))
+	assert.FileExists(s.T(), activeConfigPth, "cannot find active config in expected location")
 
-		for _, cb := range callbacks {
-			c.AddBound(cb)
-		}
+	got := c.Config()
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
+}
 
-		c.Update(newData)
-		c.Update(newData)
-		c.Update(newData)
-		c.Update(newData)
+func (s *cogTestSuite) TestDataWithoutRequiredField() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestStringWithoutVersion)
+	require.Errorf(s.T(), err, "error is not returned")
+	require.Nilf(s.T(), c, "cog instance should be nil")
 
-		if cb1 != 4 || cb2 != 4 {
-			t.Error("Bound callbacks are not being called")
-		}
-	})
+	assert.Containsf(s.T(), err.Error(), "failed at validate config", "wrong error is returned")
+}
 
-	t.Run("Check bound callback error "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+func (s *cogTestSuite) TestDefaultValuesAreSet() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestStringWithDefaults)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		cb := 0
-		callbacks := [2]Bound[TestConfig]{
-			func(tc TestConfig) error {
-				cb++
-				return nil
-			},
-			func(tc TestConfig) error {
-				return errors.New("test error")
-			},
-		}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
+	got := c.Config()
+	assert.Equalf(s.T(), testDataDefaultName, got, expectedResultErrorMsg)
+}
 
-		for _, cb := range callbacks {
-			c.AddBound(cb)
-		}
+func (s *cogTestSuite) TestEnvironmentValuesAreSet() {
+	os.Setenv("TEST_ENV_NAME", "env_name")
 
-		c.Update(newData)
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestStringWithDefaults)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		want := testData
-		got := c.GetCfg()
+	got := c.Config()
+	assert.Equalf(s.T(), testDataEnvName, got, expectedResultErrorMsg)
+}
 
-		if reflect.DeepEqual(newData, got) {
-			t.Error("config was updated to new data")
-		}
+func (s *cogTestSuite) TestDynamicTypeIsResolved() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", fh.DYNAMIC, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		if !reflect.DeepEqual(want, got) {
-			t.Error("config is not equal to old data")
-		}
+	got := c.Config()
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
 
-		if cb != 2 {
-			t.Error("Updated bound callback is not rolled back")
-		}
-	})
+	assert.FileExistsf(s.T(), fmt.Sprintf(activeConfig, string(s.tc.Type)), "expected active config file not exists")
+}
 
-	t.Run("Check channel read "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+func (s *cogTestSuite) TestSubscribersAreRegistered() {
+	subs := [3]Subscriber[testConfig]{
+		func(tc testConfig) error {
+			return nil
+		},
+		func(tc testConfig) error {
+			return nil
+		},
+		func(tc testConfig) error {
+			return nil
+		},
+	}
 
-		subscribers := [1]string{"test1"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		c.Update(newData)
-		ch, _ := c.GetSubscriber("test1")
+	for _, cb := range subs {
+		c.AddSubscriber(cb)
+	}
 
-		select {
-		case <-ch:
-			return
-		default:
-			t.Error("Channel not notified")
-			t.FailNow()
-		}
-	})
+	assert.Equalf(s.T(), len(subs), len(c.subscribers), "expected number of subscribers")
+}
 
-	t.Run("Check if channels not being overloaded "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+func (s *cogTestSuite) TestCallbacksAreRegistered() {
+	cbs := [3]Callback[testConfig]{
+		func(tc testConfig) {},
+		func(tc testConfig) {},
+		func(tc testConfig) {},
+	}
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		subscribers := [1]string{"test1"}
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, subscribers[:])
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
+	for _, f := range cbs {
+		c.AddCallback(f)
+	}
 
-		c.Update(newData)
-		c.Update(newData)
-		c.Update(newData)
+	assert.Equalf(s.T(), len(cbs), len(c.callbacks), "expected number of callbacks")
+}
 
-		if len(c.subscribers["test1"]) != 1 {
-			t.Error("Subscribers are overloaded")
-		}
-	})
+var (
+	newData                = testConfig{Name: "new_data", Version: 456}
+	newDataWithoutRequired = testConfig{Name: "new_data"}
+)
 
-	t.Run("Check if config is validated "+string(tc.Type), func(t *testing.T) {
-		t.Cleanup(cleanup)
+func (s *cogTestSuite) TestConfigUpdated() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-		c, err := setup(fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString, []string{})
-		if err != nil {
-			t.Errorf(testSetupErrorMsg, err)
-			t.FailNow()
-		}
+	err = c.Update(newData)
+	require.NoErrorf(s.T(), err, "error while updating config: %v", err)
 
-		err = c.Update(newDataWithoutRequired)
-		if err == nil {
-			t.Errorf("Expected error not thrown: %v", err)
-			t.FailNow()
-		}
+	got := c.Config()
+	assert.Equalf(s.T(), newData, got, expectedResultErrorMsg)
+}
 
-		// config should not be updated
-		want := testData
-		got := c.GetCfg()
+func (s *cogTestSuite) TestCallbacksAreNotifiedAndRemoved() {
+	var calls1, calls2 int
+	cbs := [3]Callback[testConfig]{
+		func(tc testConfig) { calls1++ },
+		func(tc testConfig) { calls2++ },
+		nil,
+	}
 
-		if !reflect.DeepEqual(want, got) {
-			t.Error(expectedResultErrorMsg)
-		}
-	})
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	c.AddCallback(cbs[0])
+	callbackId := c.AddCallback(cbs[1])
+	c.AddCallback(cbs[2])
+
+	c.Update(newData)
+	c.Update(newData)
+	time.Sleep(100 * time.Millisecond)
+
+	c.RemoveCallback(callbackId)
+
+	c.Update(newData)
+	c.Update(newData)
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(s.T(), 4, calls1)
+	assert.Equal(s.T(), 2, calls2)
+}
+
+func (s *cogTestSuite) TestRemoveCallbackWrongId() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	id := c.AddCallback(func(tc testConfig) {})
+
+	err = c.RemoveCallback(id + 1)
+	require.Errorf(s.T(), err, "RemoveCallback should return error")
+}
+
+func (s *cogTestSuite) TestSubscribersAreNotifiedAndRemoved() {
+	var calls1, calls2 int
+	subs := [3]Subscriber[testConfig]{
+		func(tc testConfig) error {
+			calls1++
+			return nil
+		},
+		func(tc testConfig) error {
+			calls2++
+			return nil
+		},
+		nil,
+	}
+
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	c.AddSubscriber(subs[0])
+	subscriberId := c.AddSubscriber(subs[1])
+	c.AddSubscriber(subs[2])
+
+	c.Update(newData)
+	c.Update(newData)
+	time.Sleep(100 * time.Millisecond)
+
+	c.RemoveSubscriber(subscriberId)
+
+	c.Update(newData)
+	c.Update(newData)
+	time.Sleep(100 * time.Millisecond)
+
+	assert.Equal(s.T(), 4, calls1)
+	assert.Equal(s.T(), 2, calls2)
+}
+
+func (s *cogTestSuite) TestRemoveSubscriberWrongId() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	id := c.AddSubscriber(func(tc testConfig) error { return nil })
+
+	err = c.RemoveSubscriber(id + 1)
+	require.Errorf(s.T(), err, "RemoveCallback should return error")
+}
+
+func (s *cogTestSuite) TestSubscriberReturnsError() {
+	var subCalls uint64
+	subs := [2]Subscriber[testConfig]{
+		func(tc testConfig) error {
+			subCalls++
+			return nil
+		},
+		func(tc testConfig) error {
+			return errors.New("test error")
+		},
+	}
+
+	var cbCalls int
+	cbs := [2]Callback[testConfig]{
+		func(tc testConfig) { cbCalls++ },
+		func(tc testConfig) { cbCalls++ },
+	}
+
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	for _, f := range subs {
+		c.AddSubscriber(f)
+	}
+
+	for _, f := range cbs {
+		c.AddCallback(f)
+	}
+
+	err = c.Update(newData)
+	require.Errorf(s.T(), err, "update config did not failed")
+
+	want := testData
+	got := c.Config()
+
+	assert.Equalf(s.T(), want, got, "config is not equal to old data")
+	assert.NotEqualf(s.T(), newData, got, "config was updated to new data")
+	assert.NotEqualf(s.T(), 1, (subCalls % 2), "updated subscriber is not rolled back: %d", subCalls)
+	assert.Zero(s.T(), cbCalls, "callbacks are called in case of subscriber error: %d", cbCalls)
+}
+
+func (s *cogTestSuite) TestUpdateConfigIsValidated() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.tc.Type)), "", s.tc.Type, s.tc.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	err = c.Update(newDataWithoutRequired)
+	require.Errorf(s.T(), err, "expected error not thrown")
+
+	// config should not be updated
+	got := c.Config()
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
+}
+
+func setup(
+	t *testing.T,
+	file string,
+	path string,
+	fileType fh.FileType,
+	data string,
+) (*C[testConfig], error) {
+
+	if path != "" {
+		err := os.Mkdir(path, os.ModePerm)
+		require.NoErrorf(t, err, "setup: error while creating directory")
+	}
+
+	f := filepath.Join(path, file)
+	err := os.WriteFile(f, []byte(data), permissions)
+	require.NoErrorf(t, err, "setup: error while write to file")
+
+	h, err := fh.New(fh.WithName(appName), fh.WithPath(path), fh.WithType(fileType))
+	require.NoErrorf(t, err, "setup: error while creating file handler")
+
+	return Init[testConfig](h)
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/leonidasdeim/cog"
-	fh "github.com/leonidasdeim/cog/pkg/filehandler"
+	fh "github.com/leonidasdeim/cog/filehandler"
 )
 
 type Config struct {
