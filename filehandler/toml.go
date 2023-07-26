@@ -1,11 +1,10 @@
-package impl
+package filehandler
 
 import (
 	"fmt"
 	"os"
 	"sync"
 
-	"github.com/leonidasdeim/cog/pkg/utils"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -22,7 +21,7 @@ func (t *Toml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal toml: %v", err)
 	}
 
-	err = utils.Write(file, toml)
+	err = Utils.WriteFile(file, toml)
 	if err != nil {
 		return fmt.Errorf("failed at write to toml file: %v", err)
 	}

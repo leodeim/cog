@@ -1,11 +1,10 @@
-package impl
+package filehandler
 
 import (
 	"fmt"
 	"os"
 	"sync"
 
-	"github.com/leonidasdeim/cog/pkg/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,7 +21,7 @@ func (y *Yaml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal yaml: %v", err)
 	}
 
-	err = utils.Write(file, yaml)
+	err = Utils.WriteFile(file, yaml)
 	if err != nil {
 		return fmt.Errorf("failed at write to yaml file: %v", err)
 	}

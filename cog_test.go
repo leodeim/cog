@@ -11,8 +11,7 @@ import (
 	"testing"
 	"time"
 
-	fh "github.com/leonidasdeim/cog/pkg/filehandler"
-	"github.com/leonidasdeim/cog/pkg/utils"
+	fh "github.com/leonidasdeim/cog/filehandler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -125,7 +124,7 @@ func testConfigDefaults(t *testing.T, tc testCase) {
 	c, err := Init[ConfigNoRequiredFields]()
 	require.NoErrorf(t, err, testSetupErrorMsg)
 
-	assert.Truef(t, utils.Exists("app.json"), "active config file is not created")
+	assert.FileExistsf(t, "app.json", "active config file is not created")
 	assert.Equalf(t, "app", c.Config().Name, "default name is not set")
 	assert.Equalf(t, true, c.Config().IsPrefork, "default isPrefork is not set")
 	assert.Equalf(t, "localhost", c.Config().Store.Host, "default host is not set")
@@ -146,7 +145,7 @@ func testActiveConfigCreated(t *testing.T, tc testCase) {
 	_, err := setup(t, fmt.Sprintf(defaultConfig, string(tc.Type)), "", tc.Type, tc.TestString)
 	require.NoErrorf(t, err, testSetupErrorMsg)
 
-	assert.Truef(t, utils.Exists(fmt.Sprintf(activeConfig, string(tc.Type))), "active config file is not created")
+	assert.FileExistsf(t, fmt.Sprintf(activeConfig, string(tc.Type)), "active config file is not created")
 }
 
 func testActiveConfigContent(t *testing.T, tc testCase) {

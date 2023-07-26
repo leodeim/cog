@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/leonidasdeim/cog/pkg/defaults"
-	fh "github.com/leonidasdeim/cog/pkg/filehandler"
+	fh "github.com/leonidasdeim/cog/filehandler"
 )
 
 type Subscriber[T any] func(T) error
@@ -199,7 +198,7 @@ func (cog *C[T]) rollback(subscribers []Subscriber[T]) {
 }
 
 func (cog *C[T]) defaults() error {
-	if err := defaults.Set(&cog.config); err != nil {
+	if err := SetDefaults(&cog.config); err != nil {
 		return fmt.Errorf("failed to set env/default values: %v", err)
 	}
 	return nil

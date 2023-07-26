@@ -3,8 +3,6 @@ package filehandler
 import (
 	"fmt"
 	"path/filepath"
-
-	"github.com/leonidasdeim/cog/pkg/utils"
 )
 
 const (
@@ -55,7 +53,7 @@ func New(opts ...Option) (*FileHandler, error) {
 	// Set defaults
 	o := &Optional{
 		Name: "app",
-		Path: utils.GetWorkDir(),
+		Path: Utils.GetWorkDir(),
 		Type: DYNAMIC,
 	}
 
@@ -89,11 +87,11 @@ func (h *FileHandler) Save(data any) error {
 }
 
 func (h *FileHandler) initActiveFile(defaultFile string, activeFile string) error {
-	if utils.Exists(activeFile) {
+	if Utils.FileExists(activeFile) {
 		return nil
 	}
 
-	if !utils.Exists(defaultFile) {
+	if !Utils.FileExists(defaultFile) {
 		return nil
 	}
 

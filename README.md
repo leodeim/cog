@@ -22,7 +22,7 @@ go get github.com/leonidasdeim/cog
 
 ## Overview
 
-Currently **cog** supports **JSON**, **YAML** and **TOML** configuration files with built-in `pkg/handler/filehandler.go`. By default it dynamically detects configuration file type. If you want to specify file type, [here](#file-handler-type) you can find how to use built-in file handlers. You can always write your own handler which would implement `ConfigHandler` interface.
+Currently **cog** supports **JSON**, **YAML** and **TOML** configuration files with built-in `handler/filehandler.go`. By default it dynamically detects configuration file type. If you want to specify file type, [here](#file-handler-type) you can find how to use built-in file handlers. You can always write your own handler which would implement `ConfigHandler` interface.
 
 Default config with initial configuration information should be placed in root folder named `<name>.default.<type>`. Name and type of the file could be changed using [custom parameters](#custom-parameters). **cog** also let to you set up default values for entries in configuration with `default:"some_value"` tag. Right now, only *bool*, *int* and *string* is supported.
 
@@ -104,7 +104,7 @@ Import built-in filehandler
 ```go
 import (
 	"github.com/leonidasdeim/cog"
-	fh "github.com/leonidasdeim/cog/pkg/filehandler"
+	fh "github.com/leonidasdeim/cog/filehandler"
 )
 ```
 
