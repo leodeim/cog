@@ -1,7 +1,6 @@
 package cog
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -14,8 +13,8 @@ var tagHandlers = []getValue{
 	defaultValue("default"),
 }
 
-func SetDefaults[T any](data *T) error {
-	return setNested(reflect.ValueOf(data).Elem())
+func SetDefaults[T any](data *T) {
+	setNested(reflect.ValueOf(data).Elem())
 }
 
 func environmentVariable(tag string) getValue {
@@ -38,45 +37,28 @@ func defaultValue(tag string) getValue {
 	}
 }
 
-func setNested(v reflect.Value) error {
+func setNested(v reflect.Value) {
 	for i := 0; i < v.NumField(); i++ {
 		if v.Field(i).Kind() == reflect.Struct {
 			setNested(v.Field(i))
 		} else {
 			t := v.Type()
 			for i := 0; i < t.NumField(); i++ {
-				if err := setField(t.Field(i), v.Field(i)); err != nil {
-					return err
-				}
+				setField(t.Field(i), v.Field(i))
 			}
 		}
 	}
-
-	return nil
 }
 
-func setField(sf reflect.StructField, f reflect.Value) error {
+func setField(sf reflect.StructField, f reflect.Value) {
 	for _, getValue := range tagHandlers {
-		if err := setValue(f, getValue(sf)); err != nil {
-			return err
-		}
+		setValue(f, getValue(sf))
 	}
-
-	return nil
 }
 
-func setValue(field reflect.Value, val string) error {
-	if val == "" {
-		return nil
-	}
-
-	if !field.CanSet() {
-		return fmt.Errorf("can't set value: %s", val)
-	}
-
-	if !isEmpty(field) {
-		// field already set.
-		return nil
+func setValue(field reflect.Value, val string) {
+	if val == "" || !isEmpty(field) || !field.CanSet() {
+		return
 	}
 
 	switch field.Kind() {
@@ -91,8 +73,6 @@ func setValue(field reflect.Value, val string) error {
 			field.Set(reflect.ValueOf(bool(val)).Convert(field.Type()))
 		}
 	}
-
-	return nil
 }
 
 func isEmpty(v reflect.Value) bool {
