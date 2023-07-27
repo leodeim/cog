@@ -44,10 +44,7 @@ func Init[T any](handler ...ConfigHandler) (*C[T], error) {
 	}
 
 	cog.load()
-
-	if err := cog.defaults(); err != nil {
-		return nil, err
-	}
+	cog.defaults()
 
 	if err := validate(cog.Config()); err != nil {
 		return nil, err
@@ -190,18 +187,12 @@ func (cog *C[T]) notify(config T) error {
 
 func (cog *C[T]) rollback(subscribers []Subscriber[T]) {
 	for _, f := range subscribers {
-		if f == nil {
-			continue
-		}
 		f(cog.config)
 	}
 }
 
-func (cog *C[T]) defaults() error {
-	if err := SetDefaults(&cog.config); err != nil {
-		return fmt.Errorf("failed to set env/default values: %v", err)
-	}
-	return nil
+func (cog *C[T]) defaults() {
+	SetDefaults(&cog.config)
 }
 
 func (cog *C[T]) updateTimestamp() {
