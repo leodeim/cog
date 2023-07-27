@@ -9,6 +9,7 @@
   <a href="https://codecov.io/gh/leonidasdeim/cog" > 
     <img src="https://codecov.io/gh/leonidasdeim/cog/branch/main/graph/badge.svg?token=3275GV3OGX"/> 
   </a>
+  <a href="">![Report](https://goreportcard.com/badge/github.com/leonidasdeim/cog)</a>
   <a href="">![Release](https://badgen.net/github/release/leonidasdeim/cog/)</a>
   <a href="">![Releases](https://badgen.net/github/releases/leonidasdeim/cog)</a>
   
