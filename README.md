@@ -76,13 +76,17 @@ For more examples check out `examples/` folder.
 
 ## Change notifications
 
-### Callback
+### Callbacks
 
 Register a callback function, which will be called on config change in non blocking way:
 ```go
-c.AddCallback(func(cfg ConfigType) {
+id := c.AddCallback(func(cfg ConfigType) {
     // handle config update
 })
+```
+Callback could be removed by `id`:
+```go
+c.RemoveCallback(id)
 ```
 
 ### Subscribers
@@ -91,12 +95,16 @@ You can register another type of callback - **subscriber**. It will be called on
 It has different signature than callback: it can return an error and in case subscriber callback returns an error - whole config update is being rolled back.
 Example:
 ```go
-c.AddSubscriber(func(cfg ConfigType) error {
+id := c.AddSubscriber(func(cfg ConfigType) error {
     if err := tryConfigUpdate(cfg); err != nil {
         return err
     }
     return nil
 })
+```
+Subscriber could be removed dynamically:
+```go
+c.RemoveSubscriber(id)
 ```
 
 ## File handler
