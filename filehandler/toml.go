@@ -8,11 +8,11 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-type Toml struct {
+type tomlFile struct {
 	m sync.Mutex
 }
 
-func (t *Toml) Write(data any, file string) error {
+func (t *tomlFile) write(data any, file string) error {
 	t.m.Lock()
 	defer t.m.Unlock()
 
@@ -21,7 +21,7 @@ func (t *Toml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal toml: %v", err)
 	}
 
-	err = Utils.WriteFile(file, toml)
+	err = Utils.writeFile(file, toml)
 	if err != nil {
 		return fmt.Errorf("failed at write to toml file: %v", err)
 	}
@@ -29,7 +29,7 @@ func (t *Toml) Write(data any, file string) error {
 	return nil
 }
 
-func (t *Toml) Read(data any, file string) error {
+func (t *tomlFile) read(data any, file string) error {
 	t.m.Lock()
 	defer t.m.Unlock()
 
@@ -46,6 +46,6 @@ func (t *Toml) Read(data any, file string) error {
 	return nil
 }
 
-func (t *Toml) GetExtension() string {
+func (t *tomlFile) extension() string {
 	return "toml"
 }

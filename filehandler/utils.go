@@ -10,7 +10,7 @@ type _utils struct{}
 
 var Utils = _utils{}
 
-func (_utils) FileExists(file string) bool {
+func (_utils) fileExists(file string) bool {
 	if _, err := os.Stat(file); err == nil {
 		return true
 	}
@@ -18,7 +18,7 @@ func (_utils) FileExists(file string) bool {
 	return false
 }
 
-func (_utils) GetWorkDir() string {
+func (_utils) fetWorkDir() string {
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -27,6 +27,6 @@ func (_utils) GetWorkDir() string {
 	return wd
 }
 
-func (_utils) WriteFile(name string, data []byte) error {
+func (_utils) writeFile(name string, data []byte) error {
 	return os.WriteFile(name, data, filePermissions)
 }

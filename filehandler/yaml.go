@@ -8,11 +8,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Yaml struct {
+type yamlFile struct {
 	m sync.Mutex
 }
 
-func (y *Yaml) Write(data any, file string) error {
+func (y *yamlFile) write(data any, file string) error {
 	y.m.Lock()
 	defer y.m.Unlock()
 
@@ -21,7 +21,7 @@ func (y *Yaml) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal yaml: %v", err)
 	}
 
-	err = Utils.WriteFile(file, yaml)
+	err = Utils.writeFile(file, yaml)
 	if err != nil {
 		return fmt.Errorf("failed at write to yaml file: %v", err)
 	}
@@ -29,7 +29,7 @@ func (y *Yaml) Write(data any, file string) error {
 	return nil
 }
 
-func (y *Yaml) Read(data any, file string) error {
+func (y *yamlFile) read(data any, file string) error {
 	y.m.Lock()
 	defer y.m.Unlock()
 
@@ -46,6 +46,6 @@ func (y *Yaml) Read(data any, file string) error {
 	return nil
 }
 
-func (y *Yaml) GetExtension() string {
+func (y *yamlFile) extension() string {
 	return "yaml"
 }

@@ -12,7 +12,7 @@ const (
 
 type FileHandler struct {
 	file   string
-	fileIO FileIO
+	fileIO fileIO
 }
 
 type Optional struct {
@@ -53,7 +53,7 @@ func New(opts ...Option) (*FileHandler, error) {
 	// Set defaults
 	o := &Optional{
 		Name: "app",
-		Path: Utils.GetWorkDir(),
+		Path: Utils.fetWorkDir(),
 		Type: DYNAMIC,
 	}
 
@@ -62,12 +62,12 @@ func New(opts ...Option) (*FileHandler, error) {
 	}
 
 	h := FileHandler{}
-	h.fileIO = BuildFileIO(o)
+	h.fileIO = buildFileIO(o)
 	if h.fileIO == nil {
 		return nil, fmt.Errorf("bad file type, or dynamic type has not been resolved: %s", string(o.Type))
 	}
 
-	e := h.fileIO.GetExtension()
+	e := h.fileIO.extension()
 	h.file = filepath.Join(o.Path, fmt.Sprintf(activeConfig, o.Name, e))
 	defaultFile := filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, e))
 
@@ -79,29 +79,29 @@ func New(opts ...Option) (*FileHandler, error) {
 }
 
 func (h *FileHandler) Load(data any) error {
-	return h.fileIO.Read(data, h.file)
+	return h.fileIO.read(data, h.file)
 }
 
 func (h *FileHandler) Save(data any) error {
-	return h.fileIO.Write(data, h.file)
+	return h.fileIO.write(data, h.file)
 }
 
 func (h *FileHandler) initActiveFile(defaultFile string, activeFile string) error {
-	if Utils.FileExists(activeFile) {
+	if Utils.fileExists(activeFile) {
 		return nil
 	}
 
-	if !Utils.FileExists(defaultFile) {
+	if !Utils.fileExists(defaultFile) {
 		return nil
 	}
 
 	var t interface{}
 
-	if err := h.fileIO.Read(&t, defaultFile); err != nil {
+	if err := h.fileIO.read(&t, defaultFile); err != nil {
 		return err
 	}
 
-	if err := h.fileIO.Write(t, activeFile); err != nil {
+	if err := h.fileIO.write(t, activeFile); err != nil {
 		return err
 	}
 

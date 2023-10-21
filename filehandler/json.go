@@ -12,11 +12,11 @@ const (
 	emptySpace    = ""
 )
 
-type Json struct {
+type jsonFile struct {
 	m sync.Mutex
 }
 
-func (j *Json) Write(data any, file string) error {
+func (j *jsonFile) write(data any, file string) error {
 	j.m.Lock()
 	defer j.m.Unlock()
 
@@ -25,7 +25,7 @@ func (j *Json) Write(data any, file string) error {
 		return fmt.Errorf("failed at marshal json: %v", err)
 	}
 
-	err = Utils.WriteFile(file, json)
+	err = Utils.writeFile(file, json)
 	if err != nil {
 		return fmt.Errorf("failed at write to json file: %v", err)
 	}
@@ -33,7 +33,7 @@ func (j *Json) Write(data any, file string) error {
 	return nil
 }
 
-func (j *Json) Read(data any, file string) error {
+func (j *jsonFile) read(data any, file string) error {
 	j.m.Lock()
 	defer j.m.Unlock()
 
@@ -50,6 +50,6 @@ func (j *Json) Read(data any, file string) error {
 	return nil
 }
 
-func (j *Json) GetExtension() string {
+func (j *jsonFile) extension() string {
 	return "json"
 }

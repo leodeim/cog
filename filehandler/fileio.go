@@ -20,20 +20,20 @@ var availableImpl = []FileType{
 	TOML,
 }
 
-type FileIO interface {
-	Write(data any, file string) error
-	Read(data any, file string) error
-	GetExtension() string
+type fileIO interface {
+	write(data any, file string) error
+	read(data any, file string) error
+	extension() string
 }
 
-func BuildFileIO(o *Optional) FileIO {
+func buildFileIO(o *Optional) fileIO {
 	switch resolveType(o) {
 	case JSON:
-		return &Json{}
+		return &jsonFile{}
 	case YAML:
-		return &Yaml{}
+		return &yamlFile{}
 	case TOML:
-		return &Toml{}
+		return &tomlFile{}
 	default:
 		return nil
 	}
@@ -45,7 +45,7 @@ func resolveType(o *Optional) FileType {
 	}
 
 	for _, t := range availableImpl {
-		if Utils.FileExists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
+		if Utils.fileExists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
 			return t
 		}
 	}
