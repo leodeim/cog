@@ -14,12 +14,12 @@ type Subscriber[T any] func(T) error
 type Callback[T any] func(T)
 
 type C[T any] struct {
-	sync.Mutex
 	config      T
-	timestamp   string
 	handler     ConfigHandler
 	subscribers map[int](Subscriber[T])
 	callbacks   map[int](Callback[T])
+	timestamp   string
+	sync.Mutex
 }
 
 type ConfigHandler interface {

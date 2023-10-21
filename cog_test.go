@@ -131,14 +131,14 @@ func (s *testSuite) TestEnvironmentVarIsOverwritten() {
 
 func (s *testSuite) TestConfigDefaults() {
 	type ConfigNoRequiredFields struct {
-		Name    string `default:"app"`
-		Version int
-		Store   struct {
+		Store struct {
 			Host string `default:"localhost"`
 			Port string `default:"123"`
 		}
-		IsPrefork bool `default:"true"`
+		Name      string `default:"app"`
+		Version   int
 		ProcCount int  `default:"11"`
+		IsPrefork bool `default:"true"`
 	}
 
 	c, err := Init[ConfigNoRequiredFields]()

@@ -11,8 +11,8 @@ const (
 )
 
 type FileHandler struct {
-	file   string
 	fileIO fileIO
+	file   string
 }
 
 type Optional struct {
