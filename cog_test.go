@@ -470,3 +470,25 @@ func (s *testSuite) TestFileHandlerUpdateFail() {
 	require.Errorf(s.T(), err, "filehandler should return error")
 	assert.ErrorContainsf(s.T(), err, "filehandler error", "not a filehandler error")
 }
+
+func (s *testSuite) TestStringMask() {
+	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.testCase.Type)), "", s.testCase.Type, s.testCase.TestString)
+	require.NoErrorf(s.T(), err, testSetupErrorMsg)
+
+	got := c.Config()
+	assert.Equalf(s.T(), testData, got, expectedResultErrorMsg)
+
+	str, err := c.String(func(tc testConfig) testConfig {
+		tc.Name = "[masked]"
+		return tc
+	})
+	require.NoErrorf(s.T(), err, "filehandler should not return error")
+
+	strExpected := `{
+  "Name": "[masked]",
+  "Version": 123,
+  "IsPrefork": true
+}`
+
+	assert.Equal(s.T(), strExpected, str)
+}
