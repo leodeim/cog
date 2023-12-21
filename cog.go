@@ -1,6 +1,7 @@
 package cog
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"sync"
@@ -12,9 +13,10 @@ import (
 
 type Subscriber[T any] func(T) error
 type Callback[T any] func(T)
+type MaskFn[T any] func(T) T
 
 type C[T any] struct {
-	sync.Mutex
+	lock        sync.Mutex
 	config      T
 	timestamp   string
 	handler     ConfigHandler
@@ -59,8 +61,8 @@ func Init[T any](handler ...ConfigHandler) (*C[T], error) {
 
 // Update configuration data. After update subscribers will be notified.
 func (cog *C[T]) Update(new T) error {
-	cog.Lock()
-	defer cog.Unlock()
+	cog.lock.Lock()
+	defer cog.lock.Unlock()
 
 	if err := validate(new); err != nil {
 		return err
@@ -82,8 +84,8 @@ func (cog *C[T]) Update(new T) error {
 // Register new callback function. It will be called after config update in non blocking goroutine.
 // This method returns callback id (int). It can be used to remove callback by calling cog.RemoveCallback(id).
 func (cog *C[T]) AddCallback(f Callback[T]) int {
-	cog.Lock()
-	defer cog.Unlock()
+	cog.lock.Lock()
+	defer cog.lock.Unlock()
 
 	l := len(cog.callbacks) + 1
 	cog.callbacks[l] = f
@@ -93,8 +95,8 @@ func (cog *C[T]) AddCallback(f Callback[T]) int {
 
 // Remove callback by id.
 func (cog *C[T]) RemoveCallback(id int) error {
-	cog.Lock()
-	defer cog.Unlock()
+	cog.lock.Lock()
+	defer cog.lock.Unlock()
 
 	if _, ok := cog.callbacks[id]; ok {
 		delete(cog.callbacks, id)
@@ -108,8 +110,8 @@ func (cog *C[T]) RemoveCallback(id int) error {
 // If at least one subscriber returns an error, update stops and rollback is initiated for all updated subscribers.
 // This method returns subscriber id (int). It can be used to remove subscriber by calling cog.RemoveSubscriber(id).
 func (cog *C[T]) AddSubscriber(f Subscriber[T]) int {
-	cog.Lock()
-	defer cog.Unlock()
+	cog.lock.Lock()
+	defer cog.lock.Unlock()
 
 	l := len(cog.subscribers) + 1
 	cog.subscribers[l] = f
@@ -119,8 +121,8 @@ func (cog *C[T]) AddSubscriber(f Subscriber[T]) int {
 
 // Remove subscriber by id.
 func (cog *C[T]) RemoveSubscriber(id int) error {
-	cog.Lock()
-	defer cog.Unlock()
+	cog.lock.Lock()
+	defer cog.lock.Unlock()
 
 	if _, ok := cog.subscribers[id]; ok {
 		delete(cog.subscribers, id)
@@ -132,18 +134,29 @@ func (cog *C[T]) RemoveSubscriber(id int) error {
 
 // Get timestamp of the configuration. It reflects when configuration has been updated or loaded last time.
 func (cog *C[T]) GetTimestamp() string {
-	cog.Lock()
-	defer cog.Unlock()
+	cog.lock.Lock()
+	defer cog.lock.Unlock()
 
 	return cog.timestamp
 }
 
 // Get configuration data.
 func (cog *C[T]) Config() T {
-	cog.Lock()
-	defer cog.Unlock()
+	cog.lock.Lock()
+	defer cog.lock.Unlock()
 
 	return cog.config
+}
+
+func (cog *C[T]) String(mask ...MaskFn[T]) (string, error) {
+	data := cog.Config()
+
+	if len(mask) > 0 {
+		data = mask[0](data)
+	}
+
+	b, err := json.MarshalIndent(data, "", "  ")
+	return string(b), err
 }
 
 func (cog *C[T]) load() {
