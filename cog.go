@@ -13,7 +13,7 @@ import (
 
 type Subscriber[T any] func(T) error
 type Callback[T any] func(T)
-type MaskFn[T any] func(T) T
+type MaskFn[T any] func(*T)
 
 type C[T any] struct {
 	lock        sync.Mutex
@@ -148,11 +148,11 @@ func (cog *C[T]) Config() T {
 	return cog.config
 }
 
-func (cog *C[T]) String(mask ...MaskFn[T]) (string, error) {
+func (cog *C[T]) String(masks ...MaskFn[T]) (string, error) {
 	data := cog.Config()
 
-	if len(mask) > 0 {
-		data = mask[0](data)
+	for _, mask := range masks {
+		mask(&data)
 	}
 
 	b, err := json.MarshalIndent(data, "", "  ")
