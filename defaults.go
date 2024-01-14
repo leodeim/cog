@@ -66,6 +66,14 @@ func setValue(field reflect.Value, val string) {
 		if val, err := strconv.Atoi(val); err == nil {
 			field.Set(reflect.ValueOf(int(val)).Convert(field.Type()))
 		}
+	case reflect.Float32:
+		if val, err := strconv.ParseFloat(val, 32); err == nil {
+			field.Set(reflect.ValueOf(float32(val)).Convert(field.Type()))
+		}
+	case reflect.Float64:
+		if val, err := strconv.ParseFloat(val, 64); err == nil {
+			field.Set(reflect.ValueOf(float64(val)).Convert(field.Type()))
+		}
 	case reflect.String:
 		field.Set(reflect.ValueOf(val).Convert(field.Type()))
 	case reflect.Bool:
