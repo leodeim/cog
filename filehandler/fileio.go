@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 )
 
+// FileType represents a supported configuration file format.
 type FileType string
 
 const (
@@ -20,12 +21,14 @@ var availableImpl = []FileType{
 	TOML,
 }
 
+// FileIO is the interface for reading and writing config data to files.
 type FileIO interface {
 	Write(data any, file string) error
 	Read(data any, file string) error
 	GetExtension() string
 }
 
+// BuildFileIO returns a FileIO implementation for the resolved file type.
 func BuildFileIO(o *Optional) FileIO {
 	switch resolveType(o) {
 	case JSON:
@@ -45,7 +48,7 @@ func resolveType(o *Optional) FileType {
 	}
 
 	for _, t := range availableImpl {
-		if Utils.FileExists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
+		if fileExists(filepath.Join(o.Path, fmt.Sprintf(defaultConfig, o.Name, t))) {
 			return t
 		}
 	}

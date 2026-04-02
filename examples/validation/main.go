@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/leonidasdeim/cog"
-	fh "github.com/leonidasdeim/cog/filehandler"
+	"github.com/leodeim/cog"
+	fh "github.com/leodeim/cog/filehandler"
 )
 
 type Config struct {

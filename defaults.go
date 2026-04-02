@@ -13,6 +13,8 @@ var tagHandlers = []getValue{
 	defaultValue("default"),
 }
 
+// SetDefaults fills zero-value fields in data using struct tags
+// ("default" for literal values, "env" for environment variables).
 func SetDefaults[T any](data *T) {
 	setNested(reflect.ValueOf(data).Elem())
 }
@@ -22,37 +24,31 @@ func environmentVariable(tag string) getValue {
 		if env := sf.Tag.Get(tag); env != "" {
 			return os.Getenv(env)
 		}
-
 		return ""
 	}
 }
 
 func defaultValue(tag string) getValue {
 	return func(sf reflect.StructField) string {
-		if val := sf.Tag.Get(tag); val != "" {
-			return val
-		}
-
-		return ""
+		return sf.Tag.Get(tag)
 	}
 }
 
 func setNested(v reflect.Value) {
+	t := v.Type()
 	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).Kind() == reflect.Struct {
-			setNested(v.Field(i))
+		field := v.Field(i)
+		if field.Kind() == reflect.Struct {
+			setNested(field)
 		} else {
-			t := v.Type()
-			for i := 0; i < t.NumField(); i++ {
-				setField(t.Field(i), v.Field(i))
-			}
+			setField(t.Field(i), field)
 		}
 	}
 }
 
 func setField(sf reflect.StructField, f reflect.Value) {
-	for _, getValue := range tagHandlers {
-		setValue(f, getValue(sf))
+	for _, get := range tagHandlers {
+		setValue(f, get(sf))
 	}
 }
 
@@ -62,27 +58,27 @@ func setValue(field reflect.Value, val string) {
 	}
 
 	switch field.Kind() {
-	case reflect.Int:
-		if val, err := strconv.Atoi(val); err == nil {
-			field.Set(reflect.ValueOf(int(val)).Convert(field.Type()))
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v, err := strconv.ParseInt(val, 10, 64); err == nil {
+			field.SetInt(v)
 		}
-	case reflect.Float32:
-		if val, err := strconv.ParseFloat(val, 32); err == nil {
-			field.Set(reflect.ValueOf(float32(val)).Convert(field.Type()))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if v, err := strconv.ParseUint(val, 10, 64); err == nil {
+			field.SetUint(v)
 		}
-	case reflect.Float64:
-		if val, err := strconv.ParseFloat(val, 64); err == nil {
-			field.Set(reflect.ValueOf(float64(val)).Convert(field.Type()))
+	case reflect.Float32, reflect.Float64:
+		if v, err := strconv.ParseFloat(val, 64); err == nil {
+			field.SetFloat(v)
 		}
 	case reflect.String:
-		field.Set(reflect.ValueOf(val).Convert(field.Type()))
+		field.SetString(val)
 	case reflect.Bool:
-		if val, err := strconv.ParseBool(val); err == nil {
-			field.Set(reflect.ValueOf(bool(val)).Convert(field.Type()))
+		if v, err := strconv.ParseBool(val); err == nil {
+			field.SetBool(v)
 		}
 	}
 }
 
 func isEmpty(v reflect.Value) bool {
-	return !v.IsValid() || reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
+	return !v.IsValid() || v.IsZero()
 }

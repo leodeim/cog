@@ -4,14 +4,14 @@
 
 <div align="center">
 
-  <a href="">![Tests](https://github.com/leonidasdeim/cog/actions/workflows/go.yml/badge.svg)</a>
-  <a href="">![Code Scanning](https://github.com/leonidasdeim/cog/actions/workflows/codeql.yml/badge.svg)</a>
-  <a href="https://codecov.io/gh/leonidasdeim/cog" > 
-    <img src="https://codecov.io/gh/leonidasdeim/cog/branch/main/graph/badge.svg?token=3275GV3OGX"/> 
+  <a href="">![Tests](https://github.com/leodeim/cog/actions/workflows/go.yml/badge.svg)</a>
+  <a href="">![Code Scanning](https://github.com/leodeim/cog/actions/workflows/codeql.yml/badge.svg)</a>
+  <a href="https://codecov.io/gh/leodeim/cog" > 
+    <img src="https://codecov.io/gh/leodeim/cog/branch/main/graph/badge.svg?token=3275GV3OGX"/> 
   </a>
-  <a href="">![Report](https://goreportcard.com/badge/github.com/leonidasdeim/cog)</a>
-  <a href="">![Release](https://badgen.net/github/release/leonidasdeim/cog/)</a>
-  <a href="">![Releases](https://badgen.net/github/releases/leonidasdeim/cog)</a>
+  <a href="">![Report](https://goreportcard.com/badge/github.com/leodeim/cog)</a>
+  <a href="">![Release](https://badgen.net/github/release/leodeim/cog/)</a>
+  <a href="">![Releases](https://badgen.net/github/releases/leodeim/cog)</a>
   
 </div>
 
@@ -20,7 +20,7 @@
 Config tool for Go applications that require configuration changes on-the-fly.
 
 ```bash
-go get github.com/leonidasdeim/cog
+go get github.com/leodeim/cog
 ```
 
 ## Overview
@@ -56,7 +56,7 @@ type Config struct {
 Import main library:
 
 ```go
-import "github.com/leonidasdeim/cog"
+import "github.com/leodeim/cog"
 ```
 
 Initialize and use config:
@@ -114,8 +114,8 @@ By default **cog** initializes with dynamic file handler. You can specify type (
 Import built-in filehandler
 ```go
 import (
-	"github.com/leonidasdeim/cog"
-	fh "github.com/leonidasdeim/cog/filehandler"
+	"github.com/leodeim/cog"
+	fh "github.com/leodeim/cog/filehandler"
 )
 ```
 
@@ -136,4 +136,18 @@ h, _ := fh.New(
     fh.WithType(fh.JSON),
 )
 c, _ := cog.Init[ConfigType](h)
+```
+
+## String representation
+
+Use `String()` to get a JSON representation of the current config. You can pass optional mask functions to redact sensitive fields before serialization:
+
+```go
+str, err := c.String()
+// {"Name": "my-app", "Secret": "s3cret"}
+
+str, err := c.String(func(cfg *Config) {
+    cfg.Secret = "[REDACTED]"
+})
+// {"Name": "my-app", "Secret": "[REDACTED]"}
 ```

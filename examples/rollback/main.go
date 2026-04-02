@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/leonidasdeim/cog"
+	"github.com/leodeim/cog"
 )
 
 type Config struct {

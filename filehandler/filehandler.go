@@ -10,50 +10,55 @@ const (
 	activeConfig  = "%s.%s"
 )
 
+// FileHandler implements ConfigHandler using local files.
+// It supports JSON, YAML, and TOML formats.
 type FileHandler struct {
 	file   string
 	fileIO FileIO
 }
 
+// Optional holds configuration for creating a FileHandler.
 type Optional struct {
 	Name string
 	Path string
 	Type FileType
 }
 
+// Option is a functional option for configuring a FileHandler.
 type Option func(f *Optional)
 
-// Add custom filename. By default it is set to "app".
+// WithName sets a custom config file name. Default is "app".
 func WithName(n string) Option {
 	return func(o *Optional) {
 		o.Name = n
 	}
 }
 
-// Add custom config file path. By default library uses work directory.
+// WithPath sets a custom config file directory. Default is the working directory.
 func WithPath(p string) Option {
 	return func(o *Optional) {
 		o.Path = p
 	}
 }
 
-// Specify handler type.
-// - filehandler.DYNAMIC (default)
-// - filehandler.JSON
-// - filehandler.YAML
-// - filehandler.TOML
+// WithType sets the config file format.
+// Supported: filehandler.DYNAMIC (default), filehandler.JSON, filehandler.YAML, filehandler.TOML.
 func WithType(t FileType) Option {
 	return func(o *Optional) {
 		o.Type = t
 	}
 }
 
+// New creates a new FileHandler with the given options.
 func New(opts ...Option) (*FileHandler, error) {
+	wd, err := getWorkDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working directory: %w", err)
+	}
 
-	// Set defaults
 	o := &Optional{
 		Name: "app",
-		Path: Utils.GetWorkDir(),
+		Path: wd,
 		Type: DYNAMIC,
 	}
 
@@ -78,20 +83,22 @@ func New(opts ...Option) (*FileHandler, error) {
 	return &h, nil
 }
 
+// Load reads the config file into data.
 func (h *FileHandler) Load(data any) error {
 	return h.fileIO.Read(data, h.file)
 }
 
+// Save writes data to the config file.
 func (h *FileHandler) Save(data any) error {
 	return h.fileIO.Write(data, h.file)
 }
 
 func (h *FileHandler) initActiveFile(defaultFile string, activeFile string) error {
-	if Utils.FileExists(activeFile) {
+	if fileExists(activeFile) {
 		return nil
 	}
 
-	if !Utils.FileExists(defaultFile) {
+	if !fileExists(defaultFile) {
 		return nil
 	}
 

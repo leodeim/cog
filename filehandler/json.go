@@ -8,8 +8,7 @@ import (
 )
 
 const (
-	marshalIndent = "	"
-	emptySpace    = ""
+	marshalIndent = "\t"
 )
 
 type Json struct {
@@ -20,14 +19,13 @@ func (j *Json) Write(data any, file string) error {
 	j.m.Lock()
 	defer j.m.Unlock()
 
-	json, err := json.MarshalIndent(data, emptySpace, marshalIndent)
+	b, err := json.MarshalIndent(data, "", marshalIndent)
 	if err != nil {
-		return fmt.Errorf("failed at marshal json: %v", err)
+		return fmt.Errorf("failed to marshal json: %w", err)
 	}
 
-	err = Utils.WriteFile(file, json)
-	if err != nil {
-		return fmt.Errorf("failed at write to json file: %v", err)
+	if err := writeFile(file, b); err != nil {
+		return fmt.Errorf("failed to write json file: %w", err)
 	}
 
 	return nil
@@ -37,14 +35,14 @@ func (j *Json) Read(data any, file string) error {
 	j.m.Lock()
 	defer j.m.Unlock()
 
-	configFile, err := os.Open(file)
+	f, err := os.Open(file)
 	if err != nil {
-		return fmt.Errorf("failed at open json file: %v", err)
+		return fmt.Errorf("failed to open json file: %w", err)
 	}
+	defer f.Close()
 
-	jsonParser := json.NewDecoder(configFile)
-	if err = jsonParser.Decode(data); err != nil {
-		return fmt.Errorf("failed at reading from json file: %v", err)
+	if err := json.NewDecoder(f).Decode(data); err != nil {
+		return fmt.Errorf("failed to read json file: %w", err)
 	}
 
 	return nil

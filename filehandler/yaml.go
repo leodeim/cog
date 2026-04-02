@@ -16,14 +16,13 @@ func (y *Yaml) Write(data any, file string) error {
 	y.m.Lock()
 	defer y.m.Unlock()
 
-	yaml, err := yaml.Marshal(data)
+	b, err := yaml.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("failed at marshal yaml: %v", err)
+		return fmt.Errorf("failed to marshal yaml: %w", err)
 	}
 
-	err = Utils.WriteFile(file, yaml)
-	if err != nil {
-		return fmt.Errorf("failed at write to yaml file: %v", err)
+	if err := writeFile(file, b); err != nil {
+		return fmt.Errorf("failed to write yaml file: %w", err)
 	}
 
 	return nil
@@ -33,14 +32,14 @@ func (y *Yaml) Read(data any, file string) error {
 	y.m.Lock()
 	defer y.m.Unlock()
 
-	configFile, err := os.Open(file)
+	f, err := os.Open(file)
 	if err != nil {
-		return fmt.Errorf("failed at open yaml file: %v", err)
+		return fmt.Errorf("failed to open yaml file: %w", err)
 	}
+	defer f.Close()
 
-	yamlParser := yaml.NewDecoder(configFile)
-	if err = yamlParser.Decode(data); err != nil {
-		return fmt.Errorf("failed at reading from yaml file: %v", err)
+	if err := yaml.NewDecoder(f).Decode(data); err != nil {
+		return fmt.Errorf("failed to read yaml file: %w", err)
 	}
 
 	return nil

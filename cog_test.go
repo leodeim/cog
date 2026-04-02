@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	fh "github.com/leonidasdeim/cog/filehandler"
+	fh "github.com/leodeim/cog/filehandler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -184,7 +185,7 @@ func (s *testSuite) TestTimestampIsCreated() {
 	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.testCase.Type)), "", s.testCase.Type, s.testCase.TestString)
 	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-	assert.NotEmptyf(s.T(), c.GetTimestamp(), "timestamp is not set")
+	assert.Falsef(s.T(), c.GetTimestamp().IsZero(), "timestamp is not set")
 }
 
 func (s *testSuite) TestCustomConfigPath() {
@@ -206,7 +207,7 @@ func (s *testSuite) TestDataWithoutRequiredField() {
 	require.Errorf(s.T(), err, "error is not returned")
 	require.Nilf(s.T(), c, "cog instance should be nil")
 
-	assert.Containsf(s.T(), err.Error(), "failed at validate config", "wrong error is returned")
+	assert.Containsf(s.T(), err.Error(), "failed to validate config", "wrong error is returned")
 }
 
 func (s *testSuite) TestDefaultValuesAreSet() {
@@ -293,19 +294,14 @@ func (s *testSuite) TestConfigUpdated() {
 }
 
 func (s *testSuite) TestCallbacksAreNotifiedAndRemoved() {
-	var calls1, calls2 int
-	cbs := [3]Callback[testConfig]{
-		func(tc testConfig) { calls1++ },
-		func(tc testConfig) { calls2++ },
-		nil,
-	}
+	var calls1, calls2 atomic.Int64
 
 	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.testCase.Type)), "", s.testCase.Type, s.testCase.TestString)
 	require.NoErrorf(s.T(), err, testSetupErrorMsg)
 
-	c.AddCallback(cbs[0])
-	callbackId := c.AddCallback(cbs[1])
-	c.AddCallback(cbs[2])
+	c.AddCallback(func(tc testConfig) { calls1.Add(1) })
+	callbackId := c.AddCallback(func(tc testConfig) { calls2.Add(1) })
+	c.AddCallback(nil)
 
 	c.Update(newData)
 	c.Update(newData)
@@ -317,8 +313,8 @@ func (s *testSuite) TestCallbacksAreNotifiedAndRemoved() {
 	c.Update(newData)
 	time.Sleep(100 * time.Millisecond)
 
-	assert.Equal(s.T(), 4, calls1)
-	assert.Equal(s.T(), 2, calls2)
+	assert.Equal(s.T(), int64(4), calls1.Load())
+	assert.Equal(s.T(), int64(2), calls2.Load())
 }
 
 func (s *testSuite) TestRemoveCallbackWrongId() {
@@ -377,10 +373,10 @@ func (s *testSuite) TestRemoveSubscriberWrongId() {
 }
 
 func (s *testSuite) TestSubscriberReturnsError() {
-	var subCalls uint64
+	var subCalls atomic.Int64
 	subs := [2]Subscriber[testConfig]{
 		func(tc testConfig) error {
-			subCalls++
+			subCalls.Add(1)
 			return nil
 		},
 		func(tc testConfig) error {
@@ -388,10 +384,10 @@ func (s *testSuite) TestSubscriberReturnsError() {
 		},
 	}
 
-	var cbCalls int
+	var cbCalls atomic.Int64
 	cbs := [2]Callback[testConfig]{
-		func(tc testConfig) { cbCalls++ },
-		func(tc testConfig) { cbCalls++ },
+		func(tc testConfig) { cbCalls.Add(1) },
+		func(tc testConfig) { cbCalls.Add(1) },
 	}
 
 	c, err := setup(s.T(), fmt.Sprintf(defaultConfig, string(s.testCase.Type)), "", s.testCase.Type, s.testCase.TestString)
@@ -413,8 +409,8 @@ func (s *testSuite) TestSubscriberReturnsError() {
 
 	assert.Equalf(s.T(), want, got, "config is not equal to old data")
 	assert.NotEqualf(s.T(), newData, got, "config was updated to new data")
-	assert.NotEqualf(s.T(), 1, (subCalls % 2), "updated subscriber is not rolled back: %d", subCalls)
-	assert.Zero(s.T(), cbCalls, "callbacks are called in case of subscriber error: %d", cbCalls)
+	assert.Equalf(s.T(), int64(0), (subCalls.Load() % 2), "updated subscriber is not rolled back: %d", subCalls.Load())
+	assert.Zero(s.T(), cbCalls.Load(), "callbacks are called in case of subscriber error: %d", cbCalls.Load())
 }
 
 func (s *testSuite) TestUpdateConfigIsValidated() {

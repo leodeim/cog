@@ -1,32 +1,18 @@
 package filehandler
 
-import (
-	"os"
-)
+import "os"
 
 const filePermissions = 0664
 
-type _utils struct{}
-
-var Utils = _utils{}
-
-func (_utils) FileExists(file string) bool {
-	if _, err := os.Stat(file); err == nil {
-		return true
-	}
-
-	return false
+func fileExists(file string) bool {
+	_, err := os.Stat(file)
+	return err == nil
 }
 
-func (_utils) GetWorkDir() string {
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
-	return wd
+func getWorkDir() (string, error) {
+	return os.Getwd()
 }
 
-func (_utils) WriteFile(name string, data []byte) error {
+func writeFile(name string, data []byte) error {
 	return os.WriteFile(name, data, filePermissions)
 }
