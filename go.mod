@@ -1,6 +1,6 @@
 module github.com/leodeim/cog
 
-go 1.25.0
+go 1.25
 
 require (
 	github.com/go-playground/validator/v10 v10.14.1
