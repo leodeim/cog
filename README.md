@@ -6,11 +6,6 @@
 
   <a href="">![Tests](https://github.com/leodeim/cog/actions/workflows/go.yml/badge.svg)</a>
   <a href="">![Code Scanning](https://github.com/leodeim/cog/actions/workflows/codeql.yml/badge.svg)</a>
-  <a href="https://codecov.io/gh/leodeim/cog" > 
-    <img src="https://codecov.io/gh/leodeim/cog/branch/main/graph/badge.svg?token=3275GV3OGX"/> 
-  </a>
-  <a href="">![Report](https://goreportcard.com/badge/github.com/leodeim/cog)</a>
-  <a href="">![Release](https://badgen.net/github/release/leodeim/cog/)</a>
   <a href="">![Releases](https://badgen.net/github/releases/leodeim/cog)</a>
   
 </div>
